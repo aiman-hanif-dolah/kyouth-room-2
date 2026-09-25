@@ -79,4 +79,4 @@ export function yearCalc(r: { units: number; avgPrice: number; cogsPerUnit: numb
 }
 
 export const rm = (n: number) =>
-  "RM" + n.toLocaleString("en-MY", { maximumFractionDigits: 0 }).replace(/^-/, "-");
+  (n < 0 ? "-RM" : "RM") + Math.abs(n).toLocaleString("en-MY", { maximumFractionDigits: 0 });
