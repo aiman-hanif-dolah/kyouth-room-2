@@ -6,7 +6,19 @@ Visual style follows the uploaded style reference: dark "control room" look, nea
 
 ## Seeded fictional startup
 
-The workspace ships populated (not empty, no filler text) with a clearly fictional Malaysian citizen-facing digital idea: **Tech Ventura — "Jalanku"**, a community road-hazard and street-lighting reporting app for Malaysian city councils. Every section uses this same company and product, and all people, market, and money figures are labelled "Fictional" or "Assumption". Costs and projections in RM.
+The company stays **Tech Ventura**. The product is a clearly marked **placeholder** so the whole company package can be built now, and the group can swap in the real idea later (one edit updates every section and the presentation).
+
+The Company section starts with 5 genuinely different concept options, compared on appeal, feasibility, prototype potential, target customers, and money-making model:
+
+1. **BatikLab** (selected placeholder): design your own batik pattern on your phone and order it printed on a tote, tee, or scarf.
+2. **Makan Match**: friends swipe on nearby food spots and the app picks where the group eats.
+3. **ThriftLoop**: pre-loved fashion swap between university students.
+4. **RakSewa**: campus rental for cameras, camping and event gear.
+5. **Balkoni**: smart balcony herb-garden kits for condo dwellers.
+
+BatikLab is picked because it is product-led, visual, and easy to demo. The working demo lets you pick motifs and colours, preview the design live on a product, pick size, see the RM price, and place a mock order. Everything else (profile, business plan, personas, journey, marketing, prompts, presentation) is built around it. All people, market and money figures are labelled "Fictional" or "Assumption", in RM.
+
+Focus of this first build is the full company package; the product idea itself is expected to change.
 
 ## Navigation
 
@@ -17,7 +29,7 @@ Dashboard, Company, Business Plan, Product, Customers, Marketing, Prompt Library
 1. **Dashboard** — five editable member names, the eight hour-blocks with objective, tasks, deliverables, suggested timebox, assignment to one or more members, status (Not started, In progress, Ready for review, Complete), reviewer notes, and overall plus per-section progress. Timeboxes are advisory only.
 2. **Company** — 10 brainstormed ideas with pros/cons, chosen idea and rationale, name, tagline, mission, vision, values, brand palette, logo and mood board slots (image upload or URL) with copyable image prompts.
 3. **Business Plan** — problem, solution, market analysis, competitor matrix, SWOT, revenue model, cost structure, and a 1 to 3 year RM projection table with validated numbers and live recalculated totals. Assumptions flagged inline.
-4. **Product** — concept, features, benefits, differentiators, mockup gallery (upload or URL plus captions and prompts), and a working clickable Jalanku demo: report a hazard, pick a category, drop a location, track status through a council queue.
+4. **Product** — concept, features, benefits, differentiators, mockup gallery (upload or URL plus captions and prompts), and the working BatikLab design-and-order demo described above.
 5. **Customers** — demographic segmentation (age, gender, income, Malaysian location, interests, needs, behaviours), 3 persona cards marked as composites, and a journey map with stages, actions, questions, pain points, touchpoints, opportunities.
 6. **Marketing** — strategy, content pillars, posting schedule, influencer and paid ads strategy, plus editable samples: 5 Instagram posts, 3 TikTok scripts, 3 Facebook ads, 2 LinkedIn posts, shown as mockup cards with image prompts and upload slots.
 7. **Prompt Library** — 30 seeded prompts across Ideation, Analysis, Marketing, Image generation, Technical. Each has title, category, purpose, full text, linked section, input variables, improvement notes, and an explicit "actually used by <member>" flag that is off until someone records it. Add, edit, delete, reorder.
