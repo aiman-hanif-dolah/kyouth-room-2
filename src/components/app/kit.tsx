@@ -110,7 +110,7 @@ export function Field({ label, value, onChange, placeholder, type = "text", clas
   );
 }
 
-export function Area({ label, value, onChange, rows = 3, placeholder, className }: { label: string; value: string; onChange: (v: string) => void; rows?: number; placeholder?: string; className?: string }) {
+export function Area({ label, value, onChange, rows = 3, placeholder, className, optional }: { label: string; value: string; onChange: (v: string) => void; rows?: number; placeholder?: string; className?: string; optional?: boolean }) {
   const id = useFieldId();
   return (
     <div className={className}>
@@ -118,7 +118,7 @@ export function Area({ label, value, onChange, rows = 3, placeholder, className 
         {label}
       </label>
       <textarea id={id} rows={rows} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={cn(inputCls, "resize-y leading-relaxed")} />
-      {!value.trim() && <p className="mt-1 text-[11px] text-warning">Not completed yet</p>}
+      {!optional && !value.trim() && <p className="mt-1 text-[11px] text-warning">Not completed yet</p>}
     </div>
   );
 }

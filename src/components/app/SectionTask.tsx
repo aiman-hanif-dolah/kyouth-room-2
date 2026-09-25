@@ -105,8 +105,8 @@ function TaskRow({ section }: { section: SectionId }) {
             </Button>
           </div>
           <div className="space-y-3">
-            <Area label="Reviewer notes" rows={2} value={t.reviewerNotes} onChange={(v) => update((d) => { d.tasks[section].reviewerNotes = v; })} />
-            <Area label="AI prompt log for this hour (quick notes)" rows={2} value={t.promptLog} onChange={(v) => update((d) => { d.tasks[section].promptLog = v; })} placeholder="Tool used, prompt, what changed…" />
+            <Area label="Reviewer notes" rows={2} optional value={t.reviewerNotes} onChange={(v) => update((d) => { d.tasks[section].reviewerNotes = v; })} />
+            <Area label="AI prompt log for this hour (quick notes)" rows={2} optional value={t.promptLog} onChange={(v) => update((d) => { d.tasks[section].promptLog = v; })} placeholder="Tool used, prompt, what changed…" />
           </div>
         </div>
       )}
