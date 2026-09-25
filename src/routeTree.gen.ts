@@ -14,6 +14,7 @@ import { Route as BusinessRouteImport } from './routes/business'
 import { Route as CompanyRouteImport } from './routes/company'
 import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as MarketingRouteImport } from './routes/marketing'
+import { Route as PresentationRouteImport } from './routes/presentation'
 import { Route as ProductRouteImport } from './routes/product'
 import { Route as PromptsRouteImport } from './routes/prompts'
 import { Route as ReviewRouteImport } from './routes/review'
@@ -43,6 +44,11 @@ const MarketingRoute = MarketingRouteImport.update({
   path: '/marketing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PresentationRoute = PresentationRouteImport.update({
+  id: '/presentation',
+  path: '/presentation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProductRoute = ProductRouteImport.update({
   id: '/product',
   path: '/product',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/company': typeof CompanyRoute
   '/customers': typeof CustomersRoute
   '/marketing': typeof MarketingRoute
+  '/presentation': typeof PresentationRoute
   '/product': typeof ProductRoute
   '/prompts': typeof PromptsRoute
   '/review': typeof ReviewRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/company': typeof CompanyRoute
   '/customers': typeof CustomersRoute
   '/marketing': typeof MarketingRoute
+  '/presentation': typeof PresentationRoute
   '/product': typeof ProductRoute
   '/prompts': typeof PromptsRoute
   '/review': typeof ReviewRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/company': typeof CompanyRoute
   '/customers': typeof CustomersRoute
   '/marketing': typeof MarketingRoute
+  '/presentation': typeof PresentationRoute
   '/product': typeof ProductRoute
   '/prompts': typeof PromptsRoute
   '/review': typeof ReviewRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/company'
     | '/customers'
     | '/marketing'
+    | '/presentation'
     | '/product'
     | '/prompts'
     | '/review'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/company'
     | '/customers'
     | '/marketing'
+    | '/presentation'
     | '/product'
     | '/prompts'
     | '/review'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/company'
     | '/customers'
     | '/marketing'
+    | '/presentation'
     | '/product'
     | '/prompts'
     | '/review'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   CompanyRoute: typeof CompanyRoute
   CustomersRoute: typeof CustomersRoute
   MarketingRoute: typeof MarketingRoute
+  PresentationRoute: typeof PresentationRoute
   ProductRoute: typeof ProductRoute
   PromptsRoute: typeof PromptsRoute
   ReviewRoute: typeof ReviewRoute
@@ -171,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/presentation': {
+      id: '/presentation'
+      path: '/presentation'
+      fullPath: '/presentation'
+      preLoaderRoute: typeof PresentationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/product': {
       id: '/product'
       path: '/product'
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompanyRoute: CompanyRoute,
   CustomersRoute: CustomersRoute,
   MarketingRoute: MarketingRoute,
+  PresentationRoute: PresentationRoute,
   ProductRoute: ProductRoute,
   PromptsRoute: PromptsRoute,
   ReviewRoute: ReviewRoute,
