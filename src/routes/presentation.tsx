@@ -73,7 +73,7 @@ function PresentationPage() {
                   <input aria-label="Transition" value={p.transition} onChange={(e) => u((d) => { d.presentation[i].transition = e.target.value; })} placeholder="Transition line" className="w-full rounded-md border border-input bg-card px-2 py-1 text-xs italic" />
                 </div>
                 <textarea aria-label={`Speaker notes for ${p.title}`} rows={3} value={p.speakerNotes} onChange={(e) => u((d) => { d.presentation[i].speakerNotes = e.target.value; })} placeholder="Speaker notes (editable)" className="w-full rounded-md border border-input bg-card p-2 text-xs" />
-                <RowControls index={i} length={state.presentation.length} onMove={(dir) => u((d) => move(d.presentation, i, dir))} onDelete={() => {}} />
+                <RowControls index={i} length={state.presentation.length} onMove={(dir) => u((d) => move(d.presentation, i, dir))} />
               </div>
             ))}
           </div>

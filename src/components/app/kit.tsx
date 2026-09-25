@@ -196,7 +196,7 @@ export function StringList({ label, items, onChange, placeholder }: { label: str
   );
 }
 
-export function RowControls({ index, length, onMove, onDelete }: { index: number; length: number; onMove: (dir: -1 | 1) => void; onDelete: () => void }) {
+export function RowControls({ index, length, onMove, onDelete }: { index: number; length: number; onMove: (dir: -1 | 1) => void; onDelete?: () => void }) {
   return (
     <div className="flex items-center gap-0.5">
       <Button size="sm" variant="ghost" aria-label="Move up" disabled={index === 0} onClick={() => onMove(-1)}>
@@ -205,9 +205,11 @@ export function RowControls({ index, length, onMove, onDelete }: { index: number
       <Button size="sm" variant="ghost" aria-label="Move down" disabled={index === length - 1} onClick={() => onMove(1)}>
         <ArrowDown className="size-3.5" />
       </Button>
-      <Button size="sm" variant="danger" aria-label="Delete" onClick={onDelete}>
-        <Trash2 className="size-3.5" />
-      </Button>
+      {onDelete && (
+        <Button size="sm" variant="danger" aria-label="Delete" onClick={onDelete}>
+          <Trash2 className="size-3.5" />
+        </Button>
+      )}
     </div>
   );
 }
