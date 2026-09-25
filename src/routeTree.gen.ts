@@ -12,7 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BusinessRouteImport } from './routes/business'
 import { Route as CompanyRouteImport } from './routes/company'
+import { Route as CustomersRouteImport } from './routes/customers'
+import { Route as MarketingRouteImport } from './routes/marketing'
 import { Route as ProductRouteImport } from './routes/product'
+import { Route as PromptsRouteImport } from './routes/prompts'
+import { Route as ReviewRouteImport } from './routes/review'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,9 +33,29 @@ const CompanyRoute = CompanyRouteImport.update({
   path: '/company',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CustomersRoute = CustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketingRoute = MarketingRouteImport.update({
+  id: '/marketing',
+  path: '/marketing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProductRoute = ProductRouteImport.update({
   id: '/product',
   path: '/product',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PromptsRoute = PromptsRouteImport.update({
+  id: '/prompts',
+  path: '/prompts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewRoute = ReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -39,34 +63,75 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/business': typeof BusinessRoute
   '/company': typeof CompanyRoute
+  '/customers': typeof CustomersRoute
+  '/marketing': typeof MarketingRoute
   '/product': typeof ProductRoute
+  '/prompts': typeof PromptsRoute
+  '/review': typeof ReviewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/business': typeof BusinessRoute
   '/company': typeof CompanyRoute
+  '/customers': typeof CustomersRoute
+  '/marketing': typeof MarketingRoute
   '/product': typeof ProductRoute
+  '/prompts': typeof PromptsRoute
+  '/review': typeof ReviewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/business': typeof BusinessRoute
   '/company': typeof CompanyRoute
+  '/customers': typeof CustomersRoute
+  '/marketing': typeof MarketingRoute
   '/product': typeof ProductRoute
+  '/prompts': typeof PromptsRoute
+  '/review': typeof ReviewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/business' | '/company' | '/product'
+  fullPaths:
+    | '/'
+    | '/business'
+    | '/company'
+    | '/customers'
+    | '/marketing'
+    | '/product'
+    | '/prompts'
+    | '/review'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/business' | '/company' | '/product'
-  id: '__root__' | '/' | '/business' | '/company' | '/product'
+  to:
+    | '/'
+    | '/business'
+    | '/company'
+    | '/customers'
+    | '/marketing'
+    | '/product'
+    | '/prompts'
+    | '/review'
+  id:
+    | '__root__'
+    | '/'
+    | '/business'
+    | '/company'
+    | '/customers'
+    | '/marketing'
+    | '/product'
+    | '/prompts'
+    | '/review'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BusinessRoute: typeof BusinessRoute
   CompanyRoute: typeof CompanyRoute
+  CustomersRoute: typeof CustomersRoute
+  MarketingRoute: typeof MarketingRoute
   ProductRoute: typeof ProductRoute
+  PromptsRoute: typeof PromptsRoute
+  ReviewRoute: typeof ReviewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -92,11 +157,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompanyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/customers': {
+      id: '/customers'
+      path: '/customers'
+      fullPath: '/customers'
+      preLoaderRoute: typeof CustomersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marketing': {
+      id: '/marketing'
+      path: '/marketing'
+      fullPath: '/marketing'
+      preLoaderRoute: typeof MarketingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/product': {
       id: '/product'
       path: '/product'
       fullPath: '/product'
       preLoaderRoute: typeof ProductRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prompts': {
+      id: '/prompts'
+      path: '/prompts'
+      fullPath: '/prompts'
+      preLoaderRoute: typeof PromptsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/review': {
+      id: '/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -106,7 +199,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BusinessRoute: BusinessRoute,
   CompanyRoute: CompanyRoute,
+  CustomersRoute: CustomersRoute,
+  MarketingRoute: MarketingRoute,
   ProductRoute: ProductRoute,
+  PromptsRoute: PromptsRoute,
+  ReviewRoute: ReviewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
