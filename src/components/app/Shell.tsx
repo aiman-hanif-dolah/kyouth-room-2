@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Briefcase, Building2, ClipboardCheck, LayoutDashboard, Megaphone, Menu, MonitorPlay, Package, Sparkles, Users, X, RotateCcw } from "lucide-react";
+import { Briefcase, Building2, ClipboardCheck, LayoutDashboard, Megaphone, Menu, MonitorPlay, Package, Sparkles, Users, X, RotateCcw, FolderOpen, LogIn, LogOut } from "lucide-react";
 import { useProject } from "@/lib/project/store";
+import { useAuth } from "@/lib/project/auth";
 import { Button } from "./kit";
 import { cn } from "@/lib/utils";
 
@@ -13,13 +14,16 @@ const NAV = [
   { to: "/customers", label: "Customers", icon: Users },
   { to: "/marketing", label: "Marketing", icon: Megaphone },
   { to: "/prompts", label: "Prompt Library", icon: Sparkles },
+  { to: "/assets", label: "Project assets", icon: FolderOpen },
   { to: "/presentation", label: "Presentation", icon: MonitorPlay },
   { to: "/review", label: "Review checklist", icon: ClipboardCheck },
 ] as const;
 
 export function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const { state, reset } = useProject();
+  const { state, reset, sync, syncError } = useProject();
+  const { session, signOut } = useAuth();
+  const syncText = !session ? "Not signed in: saved in this browser only. Sign in to share edits and files with your teammates." : sync === "loading" ? "Connecting to the shared workspace…" : sync === "saving" ? "Saving to the shared workspace…" : sync === "error" ? `Shared save failed: ${syncError}. Your edits stay in this browser until it works again.` : "Shared with the team. Edits appear on everyone's devices. If two people edit at the same moment, the last save wins.";
   const [confirm, setConfirm] = useState(false);
 
   const nav = (
@@ -51,7 +55,12 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
       {nav}
       <div className="mt-auto space-y-3 rounded-lg border border-border p-3 text-[11px] leading-relaxed text-muted-foreground">
-        <p>Saved in this browser only. Other members will not see your edits on their devices.</p>
+        <p className={sync === "error" ? "text-destructive" : undefined}>{syncText}</p>
+        {session ? (
+          <div className="flex items-center justify-between gap-2"><span className="truncate">{session.user.email}</span><Button size="sm" variant="ghost" onClick={signOut} aria-label="Sign out"><LogOut className="size-3.5" /></Button></div>
+        ) : (
+          <Link to="/auth" className="inline-flex items-center gap-1.5 text-brand-soft"><LogIn className="size-3.5" /> Sign in</Link>
+        )}
         {confirm ? (
           <div className="space-y-2">
             <p className="text-destructive">Erase all edits and restore starter content?</p>

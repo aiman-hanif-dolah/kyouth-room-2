@@ -113,6 +113,11 @@ function MarketingPage() {
           </Card>
         ))}
       </div>
+
+      <Card className="mt-4" title="Campaign visuals" subtitle="Extra ad creatives, mockups or briefs for the whole campaign.">
+        <AssetGallery slot="marketing.visuals" section="s6" />
+        <div className="mt-3"><StorageNote /></div>
+      </Card>
     </>
   );
 }
