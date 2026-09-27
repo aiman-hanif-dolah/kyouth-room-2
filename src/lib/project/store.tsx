@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { createSeed, SEED_VERSION } from "./seed";
+import { createSeed, DRAFT_SPEAKER_NOTES, SEED_VERSION } from "./seed";
 import type { ProjectState, SectionId } from "./types";
 
 const KEY = "tech-ventura-project-v1";
