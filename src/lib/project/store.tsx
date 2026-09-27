@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { createSeed, SEED_VERSION } from "./seed";
+import { createSeed, DRAFT_SPEAKER_NOTES, SEED_VERSION } from "./seed";
 import type { ProjectState, SectionId } from "./types";
 
 const KEY = "tech-ventura-project-v1";
@@ -28,6 +28,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           const members = (parsed as any).members;
           if (Array.isArray(members)) {
             (parsed as any).members = members.map((m: any) => (m && typeof m.name === "string" && names[m.name.trim()] ? { ...m, name: names[m.name.trim()] } : m));
+          }
+          // Migration: fill only empty speaker notes with labelled drafts; never overwrite user notes.
+          if (Array.isArray((parsed as any).presentation)) {
+            (parsed as any).presentation = (parsed as any).presentation.map((p: any) => (p && !String(p.speakerNotes ?? "").trim() && DRAFT_SPEAKER_NOTES[p.key] ? { ...p, speakerNotes: DRAFT_SPEAKER_NOTES[p.key] } : p));
           }
           setState({ ...createSeed(), ...parsed });
         }
