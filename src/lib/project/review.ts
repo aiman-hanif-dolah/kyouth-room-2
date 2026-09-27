@@ -60,5 +60,7 @@ export function sectionProgress(s: ProjectState, id: SectionId) {
   const checks = runChecks(s).filter((c) => c.section === id);
   const statusScore = { not_started: 0, in_progress: 0.4, ready_for_review: 0.8, complete: 1 }[s.tasks[id].status];
   const contentScore = checks.length ? checks.filter((c) => c.ok).length / checks.length : 1;
+  // Seeded content alone is not progress: content checks only count once work has started.
+  if (statusScore === 0) return 0;
   return Math.round((statusScore * 0.5 + contentScore * 0.5) * 100);
 }
