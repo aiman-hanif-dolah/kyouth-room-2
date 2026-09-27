@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Maximize, Pause, Play, Printer, RotateCcw, X, StickyNote } from "lucide-react";
 import { useProject, memberName } from "@/lib/project/store";
 import { buildSlides } from "@/components/app/slides";
+import { useAssets } from "@/lib/project/assets";
 import { Badge, Button, Card, PageHeader, NumField } from "@/components/app/kit";
 import { SectionTaskPanel } from "@/components/app/SectionTask";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,8 @@ const fmt = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 
 function PresentationPage() {
   const { state, update } = useProject();
   const u = (fn: (d: typeof state) => void) => update(fn, "s7");
-  const slides = buildSlides(state);
+  const media = useAssets();
+  const slides = buildSlides(state, true, media);
   const total = state.presentation.reduce((a, p) => a + p.minutes, 0);
   const [presenting, setPresenting] = useState(false);
   const [start, setStart] = useState(0);
@@ -93,7 +95,7 @@ function PresentationPage() {
 
       {printing && (
         <div className="fixed inset-0 z-[100] overflow-auto bg-background p-6">
-          {buildSlides(state, false).map((s, i) => (
+          {buildSlides(state, false, media).map((s, i) => (
             <section key={i} className="print-slide mb-6 min-h-[60vh] rounded-xl border border-border p-10">
               <p className="mb-4 text-xs text-muted-foreground">{i + 1}. {s.title}</p>
               {s.body}
@@ -109,7 +111,8 @@ function PresentationPage() {
 
 function Presenter({ start, onClose }: { start: number; onClose: () => void }) {
   const { state } = useProject();
-  const slides = buildSlides(state);
+  const media = useAssets();
+  const slides = buildSlides(state, true, media);
   const [i, setI] = useState(Math.max(0, start));
   const [notes, setNotes] = useState(false);
   const [running, setRunning] = useState(false);

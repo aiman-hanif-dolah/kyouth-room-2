@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useProject, uid } from "@/lib/project/store";
+import { AssetGallery, StorageNote } from "@/components/app/Assets";
 import { Area, Badge, Button, Card, CopyButton, ImageSlot, PageHeader, RowControls, move, AiNotConnected } from "@/components/app/kit";
 import { SectionTaskPanel } from "@/components/app/SectionTask";
 import type { Platform } from "@/lib/project/types";
@@ -95,6 +96,7 @@ function MarketingPage() {
             <div className="grid gap-0 md:grid-cols-[220px_1fr]">
               <div className="border-b border-border p-3 md:border-b-0 md:border-r">
                 <ImageSlot aspect={tab === "tiktok" ? "aspect-[9/16] max-h-64 mx-auto" : "aspect-square"} item={{ id: s.id, url: s.imageUrl, caption: s.title, prompt: s.imagePrompt }} onChange={(v) => u((d) => { d.samples[i].imageUrl = v.url; d.samples[i].imagePrompt = v.prompt; d.samples[i].title = v.caption; })} />
+                <div className="mt-3"><AssetGallery slot={`marketing.sample.${s.id}`} section="s6" imagesOnly cols="grid-cols-1" /></div>
               </div>
               <div className="space-y-2 p-4">
                 <div className="flex items-center justify-between gap-2">
@@ -111,6 +113,11 @@ function MarketingPage() {
           </Card>
         ))}
       </div>
+
+      <Card className="mt-4" title="Campaign visuals" subtitle="Extra ad creatives, mockups or briefs for the whole campaign.">
+        <AssetGallery slot="marketing.visuals" section="s6" />
+        <div className="mt-3"><StorageNote /></div>
+      </Card>
     </>
   );
 }

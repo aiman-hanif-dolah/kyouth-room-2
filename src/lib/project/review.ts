@@ -1,4 +1,5 @@
 import type { ProjectState, SectionId } from "./types";
+import type { Asset } from "./assets";
 
 export interface Check {
   id: string;
@@ -12,7 +13,8 @@ export interface Check {
 
 const filled = (s: string | undefined) => !!s && s.trim().length > 0;
 
-export function runChecks(s: ProjectState): Check[] {
+export function runChecks(s: ProjectState, assets: Asset[] = []): Check[] {
+  const imgs = (pred: (a: Asset) => boolean) => assets.filter((a) => a.kind === "image" && pred(a)).length;
   const c = s.company;
   const b = s.business;
   const count = (p: string) => s.marketing.samples.filter((x) => x.platform === p && filled(x.body)).length;
@@ -24,14 +26,14 @@ export function runChecks(s: ProjectState): Check[] {
   const nameMentions = [b.solution, s.product.description, s.marketing.strategy].join(" ");
   const check = (id: string, section: SectionId, label: string, ok: boolean, detail: string, partial = false): Check => ({ id, section, label, ok, detail, partial: !ok && partial });
   // Visual deliverables: a prompt is only partial, a real uploaded/linked image is required to pass.
-  const logoImg = filled(c.logo.url);
-  const moodImgs = c.moodboard.filter((m) => filled(m.url)).length;
+  const logoImg = filled(c.logo.url) || imgs((a) => a.slot === "company.logo") > 0;
+  const moodImgs = c.moodboard.filter((m) => filled(m.url)).length + imgs((a) => a.slot === "company.moodboard");
   const brandPrompts = filled(c.logo.prompt) || c.moodboard.some((m) => filled(m.prompt));
   const brandMissing = [!logoImg && "logo image", moodImgs === 0 && "at least 1 mood board image"].filter(Boolean).join(" and ");
-  const mockImgs = s.product.mockups.filter((m) => filled(m.url)).length;
+  const mockImgs = s.product.mockups.filter((m) => filled(m.url)).length + imgs((a) => a.slot === "product.mockups");
   const mockPrompts = s.product.mockups.filter((m) => !filled(m.url) && filled(m.prompt)).length;
-  const socialImgs = s.marketing.samples.filter((x) => filled(x.imageUrl)).length;
-  const socialPromptOnly = s.marketing.samples.filter((x) => !filled(x.imageUrl) && filled(x.imagePrompt)).length;
+  const socialImgs = s.marketing.samples.filter((x) => filled(x.imageUrl) || imgs((a) => a.slot === `marketing.sample.${x.id}`) > 0).length;
+  const socialPromptOnly = s.marketing.samples.filter((x) => !filled(x.imageUrl) && !imgs((a) => a.slot === `marketing.sample.${x.id}`) && filled(x.imagePrompt)).length;
   const noNotes = s.presentation.filter((p) => !filled(p.speakerNotes)).map((p) => p.title);
   const draftNotes = s.presentation.filter((p) => /^\s*\[?DRAFT/i.test(p.speakerNotes)).length;
 
@@ -71,8 +73,8 @@ export function runChecks(s: ProjectState): Check[] {
   ];
 }
 
-export function sectionProgress(s: ProjectState, id: SectionId) {
-  const checks = runChecks(s).filter((c) => c.section === id);
+export function sectionProgress(s: ProjectState, id: SectionId, assets: Asset[] = []) {
+  const checks = runChecks(s, assets).filter((c) => c.section === id);
   const statusScore = { not_started: 0, in_progress: 0.4, ready_for_review: 0.8, complete: 1 }[s.tasks[id].status];
   const contentScore = checks.length ? checks.filter((c) => c.ok).length / checks.length : 1;
   // Seeded content alone is not progress: content checks only count once work has started.

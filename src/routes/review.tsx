@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useProject } from "@/lib/project/store";
+import { useAssets } from "@/lib/project/assets";
 import { runChecks } from "@/lib/project/review";
 import { SECTIONS } from "@/lib/project/sections";
 import { Card, PageHeader, Progress } from "@/components/app/kit";
@@ -19,7 +20,8 @@ export const Route = createFileRoute("/review")({
 
 function ReviewPage() {
   const { state } = useProject();
-  const checks = runChecks(state);
+  const { assets } = useAssets();
+  const checks = runChecks(state, assets);
   const ok = checks.filter((c) => c.ok).length;
   return (
     <>

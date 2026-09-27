@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus, Star } from "lucide-react";
 import { useProject, uid } from "@/lib/project/store";
+import { AssetGallery, StorageNote } from "@/components/app/Assets";
 import { Area, Badge, Button, Card, Field, Fictional, ImageSlot, newImage, PageHeader, RowControls, StringList, move, AiNotConnected } from "@/components/app/kit";
 import { SectionTaskPanel } from "@/components/app/SectionTask";
 import { cn } from "@/lib/utils";
@@ -128,7 +129,7 @@ function CompanyPage() {
         </Card>
       </div>
 
-      <Card className="mt-4" title="5. Logo and mood board" subtitle="Image generation is not connected here. Copy the prompt into your image tool, then upload or link the result.">
+      <Card className="mt-4" title="5. Logo and mood board" subtitle="Image generation is not connected here. Copy the prompt into your image tool, then upload the results below (as many as you like) or paste a link.">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div>
             <p className="mb-1.5 text-xs font-medium text-muted-foreground">Logo</p>
@@ -141,7 +142,12 @@ function CompanyPage() {
             </div>
           ))}
         </div>
-        <Button size="sm" className="mt-3" onClick={() => u1((d) => { d.moodboard.push(newImage()); })}><Plus className="size-3.5" /> Mood board image</Button>
+        <Button size="sm" className="mt-3" onClick={() => u1((d) => { d.moodboard.push(newImage()); })}><Plus className="size-3.5" /> Mood board prompt</Button>
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_2fr]">
+          <AssetGallery slot="company.logo" section="s1" title="Logo files" imagesOnly cols="grid-cols-1" />
+          <AssetGallery slot="company.moodboard" section="s1" title="Mood board uploads" />
+        </div>
+        <div className="mt-3"><StorageNote /></div>
       </Card>
 
       <h2 className="mb-3 mt-10 text-xl font-normal tracking-tight">Company profile (Hour 2)</h2>

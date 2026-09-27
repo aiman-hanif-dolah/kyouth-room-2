@@ -250,7 +250,7 @@ export function AiNotConnected({ what = "AI drafting" }: { what?: string }) {
   );
 }
 
-/** Image slot: upload (stored as data URL) or paste URL, with caption and copyable image prompt */
+/** Prompt slot: copyable image prompt, optional pasted image link. Uploads go to the shared asset galleries. */
 export function ImageSlot({ item, onChange, onDelete, aspect = "aspect-[4/3]" }: { item: ImageItem; onChange: (v: ImageItem) => void; onDelete?: () => void; aspect?: string }) {
   const [url, setUrl] = useState("");
   const [err, setErr] = useState("");
@@ -263,33 +263,11 @@ export function ImageSlot({ item, onChange, onDelete, aspect = "aspect-[4/3]" }:
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1 p-3 text-center text-xs text-muted-foreground">
             <ImagePlus className="size-5" />
-            No image yet. Upload one or paste a link.
+            No linked image. Paste a link, or upload files in the gallery below.
           </div>
         )}
       </div>
       <div className="flex flex-wrap gap-1.5">
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          aria-label="Upload image"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (!f) return;
-            if (f.size > 1.5 * 1024 * 1024) {
-              setErr("Image over 1.5 MB. Use a smaller file or a link.");
-              return;
-            }
-            setErr("");
-            const r = new FileReader();
-            r.onload = () => onChange({ ...item, url: String(r.result) });
-            r.readAsDataURL(f);
-          }}
-        />
-        <Button size="sm" onClick={() => fileRef.current?.click()}>
-          <ImagePlus className="size-3.5" /> Upload
-        </Button>
         {item.url && (
           <Button size="sm" variant="ghost" onClick={() => onChange({ ...item, url: "" })}>
             Clear
