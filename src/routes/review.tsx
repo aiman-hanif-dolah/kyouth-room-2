@@ -39,9 +39,9 @@ function ReviewPage() {
               <ul className="space-y-2">
                 {list.map((c) => (
                   <li key={c.id} className="flex items-start gap-3">
-                    {c.ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" /> : <CircleAlert className="mt-0.5 size-4 shrink-0 text-warning" />}
+                    {c.ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" /> : <CircleAlert className={c.partial ? "mt-0.5 size-4 shrink-0 text-brand-soft" : "mt-0.5 size-4 shrink-0 text-warning"} />}
                     <div>
-                      <p className="text-sm">{c.label}</p>
+                      <p className="text-sm">{c.label}{c.partial && <span className="ml-2 rounded-full border border-border-strong px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-brand-soft">Partial</span>}</p>
                       <p className="text-xs text-muted-foreground">{c.detail}</p>
                     </div>
                   </li>

@@ -65,6 +65,18 @@ const sample = (
   imagePrompt: string,
 ): ContentSample => ({ id, platform, title, body, cta, imagePrompt, imageUrl: "" });
 
+export const DRAFT_SPEAKER_NOTES: Record<string, string> = {
+  "opening": "DRAFT, review and adapt. Greet the panel, introduce the five of us by name, and show the agenda: company, business plan, product demo, marketing, customers, then AI prompt engineering as our main highlight. Mention BatikLab is our current placeholder product.",
+  "company": "DRAFT, review and adapt. Introduce Tech Ventura, tagline, mission and vision. Cover our values and fictional founder profiles, and state the USP: modern batik design anyone can customise online. Remind the audience founders are fictional.",
+  "business": "DRAFT, review and adapt. Explain the problem and BatikLab as the solution. Walk through market assumptions (clearly labelled), competitor matrix and SWOT. Close with the 1 to 3 year RM projection and note all figures are assumptions.",
+  "product": "DRAFT, review and adapt. Run the live demo: pick a motif, colours and scale, choose a product and quantity, show live RM pricing and bulk discount, place a mock order and advance the tracking timeline. Say it is a prototype, no real orders.",
+  "marketing": "DRAFT, review and adapt. Summarise the strategy and content pillars, show the weekly schedule, then highlight one Instagram post, one TikTok script and one Facebook ad. Mention influencer and paid ad plans and that budgets are assumptions.",
+  "demographics": "DRAFT, review and adapt. Present the seven segmentation dimensions, the fictional composite personas and the customer journey from discovery to repeat order. Link each persona back to a BatikLab feature.",
+  "prompts": "DRAFT, review and adapt. Explain how we structured prompts (role, context, task, format), show one prompt before and after iteration, and share examples from the library. Only quote prompts we actually ran and logged. Cover limitations and how we fact-checked outputs.",
+  "conclusion": "DRAFT, review and adapt. Recap the problem, BatikLab solution, business case and AI workflow in three sentences. Share next steps, including replacing the placeholder concept if the group decides to.",
+  "qa": "DRAFT, review and adapt. Thank the panel and invite questions. Agree beforehand who answers business, product, marketing and AI questions."
+};
+
 export const SEED_VERSION = 1;
 
 export function createSeed(): ProjectState {
@@ -242,15 +254,15 @@ export function createSeed(): ProjectState {
     prompts,
     usedPrompts: [],
     presentation: [
-      { key: "opening", title: "Opening", minutes: 2, speakerIds: ["m1"], keyPoints: "Welcome, team, agenda", transition: "Let us start with who we are.", speakerNotes: "" },
-      { key: "company", title: "Company introduction", minutes: 5, speakerIds: ["m1"], keyPoints: "Identity, mission, founders, USP", transition: "So how do we make this a business?", speakerNotes: "" },
-      { key: "business", title: "Business plan", minutes: 6, speakerIds: ["m2"], keyPoints: "Problem, market, competitors, SWOT, financials", transition: "Let us show you the product itself.", speakerNotes: "" },
-      { key: "product", title: "Product demonstration", minutes: 6, speakerIds: ["m3"], keyPoints: "Live demo of the design and order flow", transition: "Now, how will people find us?", speakerNotes: "" },
-      { key: "marketing", title: "Marketing plan", minutes: 5, speakerIds: ["m4"], keyPoints: "Strategy, pillars, content samples", transition: "Who exactly are we talking to?", speakerNotes: "" },
-      { key: "demographics", title: "Target demographics", minutes: 4, speakerIds: ["m4"], keyPoints: "Segments, personas, journey", transition: "Finally, how AI powered all of this.", speakerNotes: "" },
-      { key: "prompts", title: "AI prompt engineering (main highlight)", minutes: 9, speakerIds: ["m5", "m2"], keyPoints: "Prompt design, iteration, examples, limitations, how outputs were checked", transition: "To wrap up.", speakerNotes: "" },
-      { key: "conclusion", title: "Conclusion", minutes: 1, speakerIds: ["m1"], keyPoints: "Recap and next steps", transition: "We are happy to take questions.", speakerNotes: "" },
-      { key: "qa", title: "Q&A", minutes: 2, speakerIds: ["m1", "m2", "m3", "m4", "m5"], keyPoints: "Open questions", transition: "", speakerNotes: "" },
+      { key: "opening", title: "Opening", minutes: 2, speakerIds: ["m1"], keyPoints: "Welcome, team, agenda", transition: "Let us start with who we are.", speakerNotes: "DRAFT, review and adapt. Greet the panel, introduce the five of us by name, and show the agenda: company, business plan, product demo, marketing, customers, then AI prompt engineering as our main highlight. Mention BatikLab is our current placeholder product." },
+      { key: "company", title: "Company introduction", minutes: 5, speakerIds: ["m1"], keyPoints: "Identity, mission, founders, USP", transition: "So how do we make this a business?", speakerNotes: "DRAFT, review and adapt. Introduce Tech Ventura, tagline, mission and vision. Cover our values and fictional founder profiles, and state the USP: modern batik design anyone can customise online. Remind the audience founders are fictional." },
+      { key: "business", title: "Business plan", minutes: 6, speakerIds: ["m2"], keyPoints: "Problem, market, competitors, SWOT, financials", transition: "Let us show you the product itself.", speakerNotes: "DRAFT, review and adapt. Explain the problem and BatikLab as the solution. Walk through market assumptions (clearly labelled), competitor matrix and SWOT. Close with the 1 to 3 year RM projection and note all figures are assumptions." },
+      { key: "product", title: "Product demonstration", minutes: 6, speakerIds: ["m3"], keyPoints: "Live demo of the design and order flow", transition: "Now, how will people find us?", speakerNotes: "DRAFT, review and adapt. Run the live demo: pick a motif, colours and scale, choose a product and quantity, show live RM pricing and bulk discount, place a mock order and advance the tracking timeline. Say it is a prototype, no real orders." },
+      { key: "marketing", title: "Marketing plan", minutes: 5, speakerIds: ["m4"], keyPoints: "Strategy, pillars, content samples", transition: "Who exactly are we talking to?", speakerNotes: "DRAFT, review and adapt. Summarise the strategy and content pillars, show the weekly schedule, then highlight one Instagram post, one TikTok script and one Facebook ad. Mention influencer and paid ad plans and that budgets are assumptions." },
+      { key: "demographics", title: "Target demographics", minutes: 4, speakerIds: ["m4"], keyPoints: "Segments, personas, journey", transition: "Finally, how AI powered all of this.", speakerNotes: "DRAFT, review and adapt. Present the seven segmentation dimensions, the fictional composite personas and the customer journey from discovery to repeat order. Link each persona back to a BatikLab feature." },
+      { key: "prompts", title: "AI prompt engineering (main highlight)", minutes: 9, speakerIds: ["m5", "m2"], keyPoints: "Prompt design, iteration, examples, limitations, how outputs were checked", transition: "To wrap up.", speakerNotes: "DRAFT, review and adapt. Explain how we structured prompts (role, context, task, format), show one prompt before and after iteration, and share examples from the library. Only quote prompts we actually ran and logged. Cover limitations and how we fact-checked outputs." },
+      { key: "conclusion", title: "Conclusion", minutes: 1, speakerIds: ["m1"], keyPoints: "Recap and next steps", transition: "We are happy to take questions.", speakerNotes: "DRAFT, review and adapt. Recap the problem, BatikLab solution, business case and AI workflow in three sentences. Share next steps, including replacing the placeholder concept if the group decides to." },
+      { key: "qa", title: "Q&A", minutes: 2, speakerIds: ["m1", "m2", "m3", "m4", "m5"], keyPoints: "Open questions", transition: "", speakerNotes: "DRAFT, review and adapt. Thank the panel and invite questions. Agree beforehand who answers business, product, marketing and AI questions." },
     ],
   };
 }

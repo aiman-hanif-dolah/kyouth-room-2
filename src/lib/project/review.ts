@@ -6,6 +6,8 @@ export interface Check {
   label: string;
   ok: boolean;
   detail: string;
+  /** Some work exists (for example a prompt) but the deliverable itself is not done. */
+  partial?: boolean;
 }
 
 const filled = (s: string | undefined) => !!s && s.trim().length > 0;
@@ -20,14 +22,25 @@ export function runChecks(s: ProjectState): Check[] {
   const promptsMin = Math.max(...s.presentation.map((p) => p.minutes));
   const promptPart = s.presentation.find((p) => p.key === "prompts");
   const nameMentions = [b.solution, s.product.description, s.marketing.strategy].join(" ");
-  const check = (id: string, section: SectionId, label: string, ok: boolean, detail: string): Check => ({ id, section, label, ok, detail });
+  const check = (id: string, section: SectionId, label: string, ok: boolean, detail: string, partial = false): Check => ({ id, section, label, ok, detail, partial: !ok && partial });
+  // Visual deliverables: a prompt is only partial, a real uploaded/linked image is required to pass.
+  const logoImg = filled(c.logo.url);
+  const moodImgs = c.moodboard.filter((m) => filled(m.url)).length;
+  const brandPrompts = filled(c.logo.prompt) || c.moodboard.some((m) => filled(m.prompt));
+  const brandMissing = [!logoImg && "logo image", moodImgs === 0 && "at least 1 mood board image"].filter(Boolean).join(" and ");
+  const mockImgs = s.product.mockups.filter((m) => filled(m.url)).length;
+  const mockPrompts = s.product.mockups.filter((m) => !filled(m.url) && filled(m.prompt)).length;
+  const socialImgs = s.marketing.samples.filter((x) => filled(x.imageUrl)).length;
+  const socialPromptOnly = s.marketing.samples.filter((x) => !filled(x.imageUrl) && filled(x.imagePrompt)).length;
+  const noNotes = s.presentation.filter((p) => !filled(p.speakerNotes)).map((p) => p.title);
+  const draftNotes = s.presentation.filter((p) => /^\s*\[?DRAFT/i.test(p.speakerNotes)).length;
 
   return [
     check("ideas", "s1", "10 brainstormed ideas", c.ideas.filter((i) => filled(i.name)).length >= 10, `${c.ideas.filter((i) => filled(i.name)).length} of 10 ideas`),
     check("proscons", "s1", "Pros and cons for shortlisted ideas", c.ideas.filter((i) => i.shortlisted).every((i) => filled(i.pros) && filled(i.cons)), "Every shortlisted idea needs pros and cons"),
     check("selected", "s1", "Selected concept and rationale", filled(c.selectedConceptId) && filled(c.rationale), "Pick a concept and explain why"),
     check("identity", "s1", "Name, tagline, mission, vision, values", [c.name, c.tagline, c.mission, c.vision].every(filled) && c.values.filter(filled).length >= 3, "All identity fields and at least 3 values"),
-    check("visuals", "s1", "Logo and mood board visuals or prompts", filled(c.logo.url) || filled(c.logo.prompt), filled(c.logo.url) ? "Logo uploaded" : "Only a prompt so far, upload the generated logo when ready"),
+    check("visuals", "s1", "Logo and mood board images uploaded or linked", logoImg && moodImgs > 0, logoImg && moodImgs > 0 ? `Logo and ${moodImgs} mood board image(s) attached` : `Still missing: ${brandMissing}.${brandPrompts ? " Prompts are ready to copy, but no image has been generated and attached yet." : " No prompt or image yet."}`, brandPrompts || logoImg || moodImgs > 0),
     check("profile", "s2", "Company background, story, org, services, USP", [c.background, c.foundingStory, c.orgStructure, c.services, c.usp].every(filled), "All profile fields filled"),
     check("founders", "s2", "Founder bios labelled fictional", c.founders.length > 0 && c.founders.every((f) => /fictional/i.test(f.name + f.bio)), "Each invented founder must say (fictional)"),
     check("bplan", "s3", "Problem, solution, market, revenue, costs", [b.problem, b.solution, b.market, b.revenueModel, b.costStructure].every(filled), "All business plan text fields"),
@@ -36,7 +49,7 @@ export function runChecks(s: ProjectState): Check[] {
     check("swot", "s3", "SWOT has items in all quadrants", Object.values(b.swot).every((q) => q.filter(filled).length > 0), "Each quadrant needs at least 1 item"),
     check("projection", "s3", "1 to 3 year RM projection", b.projection.length >= 1 && b.projection.length <= 3 && b.projection.every((r) => r.units >= 0 && r.avgPrice > 0), `${b.projection.length} year(s)`),
     check("product", "s4", "Product description, features, differentiators", filled(s.product.description) && s.product.features.length >= 3 && s.product.differentiators.filter(filled).length > 0, "Description, 3+ features, differentiators"),
-    check("mockups", "s4", "Product mockups or prompts", s.product.mockups.some((m) => filled(m.url) || filled(m.prompt)), "At least one mockup or prompt"),
+    check("mockups", "s4", "Product mockup images uploaded or linked", mockImgs > 0, mockImgs > 0 ? `${mockImgs} mockup image(s) attached${mockPrompts ? `, ${mockPrompts} slot(s) still prompt only` : ""}` : `No mockup image attached yet.${mockPrompts ? ` ${mockPrompts} slot(s) have a prompt only. Generate, then upload or paste the image link.` : " Add a prompt or image."}`, mockPrompts > 0),
     check("segments", "s5", "Segmentation covers all 7 dimensions", s.customers.segments.filter((x) => filled(x.value)).length >= 7, `${s.customers.segments.filter((x) => filled(x.value)).length} of 7`),
     check("personas", "s5", "2 to 3 personas labelled as composites", s.customers.personas.length >= 2 && s.customers.personas.length <= 3 && s.customers.personas.every((p) => /composite|fictional/i.test(p.name)), `${s.customers.personas.length} personas`),
     check("journey", "s5", "Journey map with 3+ stages", s.customers.journey.length >= 3, `${s.customers.journey.length} stages`),
@@ -45,6 +58,7 @@ export function runChecks(s: ProjectState): Check[] {
     check("tt", "s6", "3 TikTok scripts", count("tiktok") >= 3, `${count("tiktok")} of 3`),
     check("fb", "s6", "3 Facebook ads", count("facebook") >= 3, `${count("facebook")} of 3`),
     check("li", "s6", "2 LinkedIn posts", count("linkedin") >= 2, `${count("linkedin")} of 2`),
+    check("socialimg", "s6", "Social mockup samples have images", socialImgs >= 1, socialImgs ? `${socialImgs} of ${s.marketing.samples.length} samples have an image attached` : `No sample has an image attached yet. ${socialPromptOnly} of ${s.marketing.samples.length} samples have an image prompt only.`, socialPromptOnly > 0),
     check("library", "s7", "Prompt library has 20 to 40 prompts", s.prompts.length >= 20 && s.prompts.length <= 40, `${s.prompts.length} prompts`),
     check("cats", "s7", "All 5 prompt categories used", new Set(s.prompts.map((p) => p.category)).size === 5, `${new Set(s.prompts.map((p) => p.category)).size} of 5 categories`),
     check("used", "s7", "Actual prompts used are recorded", s.usedPrompts.length > 0, s.usedPrompts.length ? `${s.usedPrompts.length} logged` : "No real prompt usage logged yet. Record prompts the group actually ran."),
@@ -52,6 +66,7 @@ export function runChecks(s: ProjectState): Check[] {
     check("order", "s8", "Presentation follows the required order", JSON.stringify(order) === JSON.stringify(expected), "Company, business, product, marketing, demographics, AI prompts"),
     check("highlight", "s8", "Prompt engineering is the longest part", !!promptPart && promptPart.minutes === promptsMin, "Give the AI prompt section the most time"),
     check("speakers", "s8", "Every part has a speaker", s.presentation.every((p) => p.speakerIds.length > 0), "Assign someone to each part"),
+    check("notes", "s8", "Every part has speaker notes", noNotes.length === 0, noNotes.length ? `Missing notes: ${noNotes.join(", ")}` : draftNotes ? `All parts have notes. ${draftNotes} still marked DRAFT, review and adapt before presenting.` : "All parts have notes"),
     check("consistent", "s4", "Product name used consistently", nameMentions.includes(c.productName), `Solution, product description and strategy should mention "${c.productName}"`),
   ];
 }

@@ -29,6 +29,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           if (Array.isArray(members)) {
             (parsed as any).members = members.map((m: any) => (m && typeof m.name === "string" && names[m.name.trim()] ? { ...m, name: names[m.name.trim()] } : m));
           }
+          // Migration: fill only empty speaker notes with labelled drafts; never overwrite user notes.
+          if (Array.isArray((parsed as any).presentation)) {
+            (parsed as any).presentation = (parsed as any).presentation.map((p: any) => (p && !String(p.speakerNotes ?? "").trim() && DRAFT_SPEAKER_NOTES[p.key] ? { ...p, speakerNotes: DRAFT_SPEAKER_NOTES[p.key] } : p));
+          }
           setState({ ...createSeed(), ...parsed });
         }
       }
