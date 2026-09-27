@@ -22,7 +22,15 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as ProjectState;
-        if (parsed.version === SEED_VERSION) setState({ ...createSeed(), ...parsed });
+        if (parsed.version === SEED_VERSION) {
+          // Migration: upgrade untouched default placeholders to real member names.
+          const names: Record<string, string> = { "Member 1": "Aiman Hanif", "Member 2": "Afif", "Member 3": "Naim", "Member 4": "Shamimi", "Member 5": "Tharsiny" };
+          const members = (parsed as any).members;
+          if (Array.isArray(members)) {
+            (parsed as any).members = members.map((m: any) => (m && typeof m.name === "string" && names[m.name.trim()] ? { ...m, name: names[m.name.trim()] } : m));
+          }
+          setState({ ...createSeed(), ...parsed });
+        }
       }
     } catch {
       /* corrupted storage: keep seed */
