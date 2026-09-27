@@ -148,7 +148,7 @@ export function AssetGallery({ slot, section, title, imagesOnly, cols = "sm:grid
     <div className="space-y-3" data-testid={`gallery-${slot}`}>
       {title && <p className="text-xs font-medium uppercase tracking-wider text-brand-soft">{title} <span className="text-muted-foreground">({list.length})</span></p>}
       {children}
-      <Dropzone slot={slot} section={section} imagesOnly={imagesOnly} />
+      <Dropzone slot={slot} section={section} imagesOnly={!!imagesOnly} />
       {error && <p className="text-[11px] text-destructive">{error}</p>}
       {list.length > 0 && <div className={cn("grid gap-3", cols)}>{list.map((a, i) => <AssetCard key={a.id} a={a} list={list} index={i} />)}</div>}
     </div>
