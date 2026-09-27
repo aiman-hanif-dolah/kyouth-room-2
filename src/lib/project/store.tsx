@@ -1,12 +1,20 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createSeed, DRAFT_SPEAKER_NOTES, SEED_VERSION } from "./seed";
 import type { ProjectState, SectionId } from "./types";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./auth";
 
 const KEY = "tech-ventura-project-v1";
+const MIGRATED_KEY = "tech-ventura-cloud-migrated-v1";
+const ROW_ID = "main";
+
+export type SyncStatus = "local" | "loading" | "synced" | "saving" | "error";
 
 interface Ctx {
   state: ProjectState;
   hydrated: boolean;
+  sync: SyncStatus;
+  syncError: string;
   update: (fn: (draft: ProjectState) => void, section?: SectionId) => void;
   reset: () => void;
 }
@@ -15,43 +23,123 @@ interface Ctx {
 const g = globalThis as unknown as { __tvProjectCtx?: React.Context<Ctx | null> };
 const ProjectContext = g.__tvProjectCtx ?? (g.__tvProjectCtx = createContext<Ctx | null>(null));
 
+/** Apply safe, non-destructive migrations to any saved copy (local or shared). */
+function normalize(raw: unknown): ProjectState | null {
+  const parsed = raw as any;
+  if (!parsed || typeof parsed !== "object" || parsed.version !== SEED_VERSION) return null;
+  const names: Record<string, string> = { "Member 1": "Aiman Hanif", "Member 2": "Afif", "Member 3": "Naim", "Member 4": "Shamimi", "Member 5": "Tharsiny" };
+  if (Array.isArray(parsed.members)) {
+    parsed.members = parsed.members.map((m: any) => (m && typeof m.name === "string" && names[m.name.trim()] ? { ...m, name: names[m.name.trim()] } : m));
+  }
+  if (Array.isArray(parsed.presentation)) {
+    parsed.presentation = parsed.presentation.map((p: any) => (p && !String(p.speakerNotes ?? "").trim() && DRAFT_SPEAKER_NOTES[p.key] ? { ...p, speakerNotes: DRAFT_SPEAKER_NOTES[p.key] } : p));
+  }
+  return { ...createSeed(), ...parsed } as ProjectState;
+}
+
 export function ProjectProvider({ children }: { children: ReactNode }) {
+  const { session } = useAuth();
+  const userId = session?.user.id ?? null;
   const [state, setState] = useState<ProjectState>(() => createSeed());
   const [hydrated, setHydrated] = useState(false);
+  const [sync, setSync] = useState<SyncStatus>("local");
+  const [syncError, setSyncError] = useState("");
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const clientId = useRef(Math.random().toString(36).slice(2) + Date.now().toString(36));
+  const lastSynced = useRef<string>("");
+  const cloudReady = useRef(false);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as ProjectState;
-        if (parsed.version === SEED_VERSION) {
-          // Migration: upgrade untouched default placeholders to real member names.
-          const names: Record<string, string> = { "Member 1": "Aiman Hanif", "Member 2": "Afif", "Member 3": "Naim", "Member 4": "Shamimi", "Member 5": "Tharsiny" };
-          const members = (parsed as any).members;
-          if (Array.isArray(members)) {
-            (parsed as any).members = members.map((m: any) => (m && typeof m.name === "string" && names[m.name.trim()] ? { ...m, name: names[m.name.trim()] } : m));
-          }
-          // Migration: fill only empty speaker notes with labelled drafts; never overwrite user notes.
-          if (Array.isArray((parsed as any).presentation)) {
-            (parsed as any).presentation = (parsed as any).presentation.map((p: any) => (p && !String(p.speakerNotes ?? "").trim() && DRAFT_SPEAKER_NOTES[p.key] ? { ...p, speakerNotes: DRAFT_SPEAKER_NOTES[p.key] } : p));
-          }
-          setState({ ...createSeed(), ...parsed });
-        }
-      }
+      const s = raw ? normalize(JSON.parse(raw)) : null;
+      if (s) setState(s);
     } catch {
       /* corrupted storage: keep seed */
     }
     setHydrated(true);
   }, []);
 
+  // Local cache (text only; files live in cloud storage).
   useEffect(() => {
     if (!hydrated) return;
     try {
       localStorage.setItem(KEY, JSON.stringify(state));
     } catch {
-      /* storage full (large images) */
+      /* storage full */
     }
   }, [state, hydrated]);
+
+  // Shared workspace: load once per sign-in, migrate local copy only if the cloud is empty, then live-subscribe.
+  useEffect(() => {
+    if (!hydrated || !userId) {
+      cloudReady.current = false;
+      setSync("local");
+      return;
+    }
+    let cancelled = false;
+    setSync("loading");
+    const apply = (raw: unknown) => {
+      const s = normalize(raw);
+      if (!s) return;
+      lastSynced.current = JSON.stringify(s);
+      setState(s);
+    };
+    (async () => {
+      const { data, error } = await supabase.from("workspace_state").select("state").eq("id", ROW_ID).maybeSingle();
+      if (cancelled) return;
+      if (error) { setSync("error"); setSyncError(error.message); return; }
+      if (data) {
+        apply(data.state);
+      } else {
+        // One-time migration: the shared copy is empty, so seed it from this browser's copy.
+        const local = stateRef.current;
+        const { error: insErr } = await supabase.from("workspace_state").insert({ id: ROW_ID, state: local as any, client_id: clientId.current, updated_by: userId });
+        if (insErr) {
+          // Someone else created it first: never overwrite, load theirs.
+          const again = await supabase.from("workspace_state").select("state").eq("id", ROW_ID).maybeSingle();
+          if (again.data) apply(again.data.state);
+        } else {
+          lastSynced.current = JSON.stringify(local);
+          try { localStorage.setItem(MIGRATED_KEY, new Date().toISOString()); } catch { /* ignore */ }
+        }
+      }
+      if (cancelled) return;
+      cloudReady.current = true;
+      setSync("synced");
+      setSyncError("");
+    })();
+    const channel = supabase
+      .channel("workspace-state")
+      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_state" }, (payload) => {
+        const row = payload.new as { id?: string; state?: unknown; client_id?: string };
+        if (row?.id !== ROW_ID || row.client_id === clientId.current) return;
+        apply(row.state);
+      })
+      .subscribe();
+    return () => {
+      cancelled = true;
+      cloudReady.current = false;
+      supabase.removeChannel(channel);
+    };
+  }, [hydrated, userId]);
+
+  // Debounced save of local edits to the shared copy.
+  useEffect(() => {
+    if (!userId || !cloudReady.current) return;
+    const json = JSON.stringify(state);
+    if (json === lastSynced.current) return;
+    setSync("saving");
+    const t = setTimeout(async () => {
+      const { error } = await supabase.from("workspace_state").update({ state: state as any, client_id: clientId.current, updated_by: userId, updated_at: new Date().toISOString() }).eq("id", ROW_ID);
+      if (error) { setSync("error"); setSyncError(error.message); return; }
+      lastSynced.current = json;
+      setSync("synced");
+      setSyncError("");
+    }, 700);
+    return () => clearTimeout(t);
+  }, [state, userId]);
 
   const update = useCallback((fn: (d: ProjectState) => void, section?: SectionId) => {
     setState((prev) => {
@@ -64,11 +152,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const reset = useCallback(() => {
-    const s = createSeed();
-    setState(s);
+    setState(createSeed());
   }, []);
 
-  const value = useMemo(() => ({ state, hydrated, update, reset }), [state, hydrated, update, reset]);
+  const value = useMemo(() => ({ state, hydrated, sync, syncError, update, reset }), [state, hydrated, sync, syncError, update, reset]);
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;
 }
 
