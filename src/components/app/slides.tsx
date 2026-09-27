@@ -2,6 +2,27 @@ import type { ReactNode } from "react";
 import type { PartKey, ProjectState } from "@/lib/project/types";
 import { yearCalc, rm, memberName } from "@/lib/project/store";
 import { ProductDemo } from "./ProductDemo";
+import type { Asset } from "@/lib/project/assets";
+
+export interface SlideMedia { assets: Asset[]; urls: Record<string, string> }
+interface Pic { id: string; url: string; caption: string; alt: string; w?: number | null; h?: number | null }
+
+/** Adapts layout to image count and aspect ratio; never crops uploaded images. */
+function VisualGrid({ pics }: { pics: Pic[] }) {
+  const n = pics.length;
+  const cols = n === 1 ? "grid-cols-1" : n === 2 || n === 4 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3";
+  const maxH = n === 1 ? "max-h-[60vh]" : n <= 3 ? "max-h-[45vh]" : "max-h-[24vh]";
+  return (
+    <div className={`grid items-center gap-4 ${cols}`} data-testid="slide-visuals">
+      {pics.map((x) => (
+        <figure key={x.id} className="flex flex-col items-center">
+          <img src={x.url} alt={x.alt || x.caption} style={x.w && x.h ? { aspectRatio: `${x.w} / ${x.h}` } : undefined} className={`${maxH} w-auto max-w-full rounded-lg object-contain`} />
+          {x.caption && <figcaption className="mt-1 text-center text-sm text-muted-foreground">{x.caption}</figcaption>}
+        </figure>
+      ))}
+    </div>
+  );
+}
 
 export interface Slide {
   part: PartKey;
@@ -24,7 +45,14 @@ const Box = ({ title, children }: { title: string; children: ReactNode }) => (
 const Bullets = ({ items }: { items: string[] }) => (items.filter((x) => x.trim()).length ? <ul className="list-disc space-y-1 pl-5">{items.filter((x) => x.trim()).map((x, i) => <li key={i}>{x}</li>)}</ul> : <Missing />);
 
 /** Pure selector: every slide reads from project state. Nothing is copied. */
-export function buildSlides(s: ProjectState, interactive = true): Slide[] {
+export function buildSlides(s: ProjectState, interactive = true, media: SlideMedia = { assets: [], urls: {} }): Slide[] {
+  const deck = media.assets.filter((a) => a.kind === "image" && a.in_presentation && media.urls[a.id]);
+  const toPic = (a: Asset): Pic => ({ id: a.id, url: media.urls[a.id], caption: a.caption, alt: a.alt_text, w: a.width, h: a.height });
+  const pics = (pred: (a: Asset) => boolean) => deck.filter(pred).map(toPic);
+  const visuals = (part: PartKey, title: string, list: Pic[]) => {
+    for (let k = 0; k < list.length; k += 6) add(part, list.length > 6 ? `${title} (${k / 6 + 1}/${Math.ceil(list.length / 6)})` : title, <VisualGrid pics={list.slice(k, k + 6)} />);
+  };
+  const sampleImg = (id: string) => deck.find((a) => a.slot === `marketing.sample.${id}`);
   const c = s.company, b = s.business, p = s.product, cu = s.customers, m = s.marketing;
   const out: Slide[] = [];
   const add = (part: PartKey, title: string, body: ReactNode) => out.push({ part, title, body });
@@ -43,6 +71,9 @@ export function buildSlides(s: ProjectState, interactive = true): Slide[] {
   add("company", "Who we are", <Grid><Box title="Mission"><T v={c.mission} /></Box><Box title="Vision"><T v={c.vision} /></Box><Box title="Core values"><Bullets items={c.values} /></Box><Box title="Brand palette"><div className="flex h-16 overflow-hidden rounded-lg">{c.palette.map((x) => <div key={x.id} className="flex-1" style={{ background: x.hex }} title={x.name} />)}</div></Box></Grid>);
   add("company", "Our story", <Grid><Box title="Background"><T v={c.background} /></Box><Box title="Founding story (fictional)"><T v={c.foundingStory} /></Box><Box title="Why this concept"><T v={c.rationale} /></Box><Box title="USP"><T v={c.usp} /></Box></Grid>);
   add("company", "The founding team", <><Grid cols={3}>{c.founders.map((f) => <Box key={f.id} title={f.role || "Founder"}><p className="text-foreground">{f.name}</p><p className="mt-1 text-sm">{f.bio}</p></Box>)}</Grid><p className="mt-4 whitespace-pre-line text-sm text-muted-foreground">{c.orgStructure}</p></>);
+
+  const logoFirst = (a: Asset) => (a.slot === "company.logo" ? 0 : 1);
+  visuals("company", "Brand visuals", deck.filter((a) => a.section_id === "s1" || a.section_id === "s2").sort((a, b) => logoFirst(a) - logoFirst(b)).map(toPic));
 
   add("business", "Problem and solution", <Grid><Box title="Problem"><T v={b.problem} /></Box><Box title="Solution"><T v={b.solution} /></Box></Grid>);
   add("business", "Market", <Grid><Box title="Market analysis"><T v={b.market} /></Box><Box title="Assumptions to verify"><Bullets items={b.assumptions} /></Box></Grid>);
@@ -69,21 +100,26 @@ export function buildSlides(s: ProjectState, interactive = true): Slide[] {
 
   add("product", c.productName, <Grid><Box title="Concept"><T v={p.concept} /></Box><Box title="Description"><T v={p.description} /></Box><Box title="Features">{p.features.map((f) => <p key={f.id}><span className="text-foreground">{f.title}:</span> {f.benefit}</p>)}</Box><Box title="Differentiators"><Bullets items={p.differentiators} /></Box></Grid>);
   add("product", "Live demo", interactive ? <ProductDemo /> : <p className="text-muted-foreground">Live interactive demo shown in the app.</p>);
-  if (p.mockups.some((x) => x.url)) add("product", "Mockups", <Grid cols={3}>{p.mockups.filter((x) => x.url).map((x) => <figure key={x.id}><img src={x.url} alt={x.caption} className="aspect-[4/3] w-full rounded-lg object-cover" /><figcaption className="mt-1 text-sm text-muted-foreground">{x.caption}</figcaption></figure>)}</Grid>);
+  visuals("product", "Mockups", [...p.mockups.filter((x) => x.url).map((x) => ({ id: x.id, url: x.url, caption: x.caption, alt: x.caption })), ...pics((a) => a.section_id === "s4")]);
 
   add("marketing", "Marketing strategy", <Grid><Box title="Strategy"><T v={m.strategy} /></Box><Box title="Content pillars">{m.pillars.map((x) => <p key={x.id}><span className="text-foreground">{x.title}:</span> {x.description}</p>)}</Box><Box title="Influencers"><T v={m.influencer} /></Box><Box title="Paid ads"><T v={m.paid} /></Box></Grid>);
   add("marketing", "Content samples", (
     <Grid cols={4}>
       {(["instagram", "tiktok", "facebook", "linkedin"] as const).map((pl) => {
         const list = m.samples.filter((x) => x.platform === pl);
-        return <Box key={pl} title={`${pl} (${list.length})`}>{list.slice(0, 3).map((x) => <div key={x.id} className="mb-3 border-b border-border pb-2 text-sm last:border-0">{x.imageUrl && <img src={x.imageUrl} alt="" className="mb-1 aspect-square w-full rounded object-cover" />}<p className="text-foreground">{x.title}</p><p className="line-clamp-3">{x.body}</p></div>)}</Box>;
+        return <Box key={pl} title={`${pl} (${list.length})`}>{list.slice(0, 3).map((x) => <div key={x.id} className="mb-3 border-b border-border pb-2 text-sm last:border-0">{(() => { const a = sampleImg(x.id); const src = a ? media.urls[a.id] : x.imageUrl; return src ? <img src={src} alt={a?.alt_text || x.title} className="mb-1 max-h-40 w-full rounded object-contain" /> : null; })()}<p className="text-foreground">{x.title}</p><p className="line-clamp-3">{x.body}</p></div>)}</Box>;
       })}
     </Grid>
   ));
 
+  visuals("marketing", "Campaign visuals", pics((a) => a.section_id === "s6" && !a.slot.startsWith("marketing.sample.")));
+
   add("demographics", "Who we serve", <><div className="mb-3"><Label>Hypotheses to validate</Label></div><Grid>{cu.segments.map((x) => <Box key={x.label} title={x.label}><T v={x.value} /></Box>)}</Grid></>);
   add("demographics", "Personas", <Grid cols={3}>{cu.personas.map((x) => <Box key={x.id} title={x.name}><p className="italic">"{x.quote}"</p><p className="mt-2 text-sm">{x.location} · {x.occupation} · {x.income}</p><p className="mt-2 text-sm"><span className="text-foreground">Goals:</span> {x.goals}</p><p className="text-sm"><span className="text-foreground">Frustrations:</span> {x.frustrations}</p></Box>)}</Grid>);
   add("demographics", "Customer journey", <div className="grid gap-2 md:grid-cols-6">{cu.journey.map((j, i) => <div key={j.id} className="rounded-lg border border-border bg-card p-3 text-sm"><p className="font-mono text-[10px] text-brand-soft">{i + 1}</p><p className="text-foreground">{j.stage}</p><p className="mt-2 text-muted-foreground">{j.pains}</p><p className="mt-2 text-success">{j.opportunities}</p></div>)}</div>);
+
+  visuals("business", "Business visuals", pics((a) => a.section_id === "s3"));
+  visuals("demographics", "Customer visuals", pics((a) => a.section_id === "s5"));
 
   const cats = ["Ideation", "Analysis", "Marketing", "Image generation", "Technical/prototype"] as const;
   add("prompts", "AI prompt engineering", (
@@ -100,6 +136,7 @@ export function buildSlides(s: ProjectState, interactive = true): Slide[] {
   add("prompts", "Prompts we actually used", s.usedPrompts.length ? <div className="space-y-3">{s.usedPrompts.slice(0, 4).map((x) => <div key={x.id} className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">{memberName(s, x.memberId)} · {x.tool}</p><p className="mt-1 font-mono text-sm text-subtle">{x.prompt}</p>{x.howChecked && <p className="mt-2 text-sm text-success">Checked: {x.howChecked}</p>}</div>)}</div> : <p className="text-lg"><Missing /> Log real prompts in the Prompt Library. Nothing is claimed as used until a member records it.</p>);
   add("prompts", "Limitations and how we checked outputs", <Grid><Box title="Limitations">{"AI invents market statistics confidently\nFinancial maths can be wrong\nImage tools struggle with authentic batik motifs\nCultural nuance needs human review"}</Box><Box title="How we checked">{"Every number labelled as assumption\nRecalculated projections in our own table\nCompared prices with real listings\nGroup review before marking a section complete"}</Box></Grid>);
 
+  visuals("prompts", "Prompt work visuals", pics((a) => a.section_id === "s7"));
   add("conclusion", "Conclusion", <div className="flex h-full flex-col justify-center"><h2 className="text-5xl font-normal tracking-[-1.3px]">{c.name}: <T v={c.tagline} /></h2><p className="mt-6 max-w-2xl text-xl text-subtle"><T v={c.vision} /></p></div>);
   add("qa", "Questions?", <div className="flex h-full flex-col items-center justify-center text-center"><h2 className="text-7xl font-normal tracking-[-1.3px]">Terima kasih</h2><p className="mt-4 text-xl text-muted-foreground">Questions and answers</p></div>);
   return out;
