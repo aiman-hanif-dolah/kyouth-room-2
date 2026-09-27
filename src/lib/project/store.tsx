@@ -11,7 +11,9 @@ interface Ctx {
   reset: () => void;
 }
 
-const ProjectContext = createContext<Ctx | null>(null);
+// Keep a single context instance across hot reloads so provider and consumers always match.
+const g = globalThis as unknown as { __tvProjectCtx?: React.Context<Ctx | null> };
+const ProjectContext = g.__tvProjectCtx ?? (g.__tvProjectCtx = createContext<Ctx | null>(null));
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ProjectState>(() => createSeed());
