@@ -14,7 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      project_assets: {
+        Row: {
+          alt_text: string
+          caption: string
+          category: string
+          created_at: string
+          file_name: string
+          height: number | null
+          id: string
+          in_presentation: boolean
+          kind: string
+          mime_type: string
+          section_id: string
+          size_bytes: number
+          slot: string
+          sort_order: number
+          storage_path: string
+          tags: string[]
+          updated_at: string
+          uploaded_by: string | null
+          uploader_member_id: string
+          width: number | null
+        }
+        Insert: {
+          alt_text?: string
+          caption?: string
+          category?: string
+          created_at?: string
+          file_name: string
+          height?: number | null
+          id?: string
+          in_presentation?: boolean
+          kind?: string
+          mime_type?: string
+          section_id?: string
+          size_bytes?: number
+          slot?: string
+          sort_order?: number
+          storage_path: string
+          tags?: string[]
+          updated_at?: string
+          uploaded_by?: string | null
+          uploader_member_id?: string
+          width?: number | null
+        }
+        Update: {
+          alt_text?: string
+          caption?: string
+          category?: string
+          created_at?: string
+          file_name?: string
+          height?: number | null
+          id?: string
+          in_presentation?: boolean
+          kind?: string
+          mime_type?: string
+          section_id?: string
+          size_bytes?: number
+          slot?: string
+          sort_order?: number
+          storage_path?: string
+          tags?: string[]
+          updated_at?: string
+          uploaded_by?: string | null
+          uploader_member_id?: string
+          width?: number | null
+        }
+        Relationships: []
+      }
+      workspace_state: {
+        Row: {
+          client_id: string
+          id: string
+          state: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          client_id?: string
+          id: string
+          state: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          client_id?: string
+          id?: string
+          state?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
