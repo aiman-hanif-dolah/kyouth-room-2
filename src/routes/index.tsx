@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
 import { useProject } from "@/lib/project/store";
 import { SECTIONS } from "@/lib/project/sections";
+import { useAssets } from "@/lib/project/assets";
 import { runChecks, sectionProgress } from "@/lib/project/review";
 import { Card, PageHeader, Progress, StatusBadge, Badge, Button } from "@/components/app/kit";
 import { MemberPicker, StatusSelect } from "@/components/app/SectionTask";
@@ -21,9 +22,10 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const { state, update, hydrated } = useProject();
-  const progress = SECTIONS.map((s) => sectionProgress(state, s.id));
+  const { assets } = useAssets();
+  const progress = SECTIONS.map((s) => sectionProgress(state, s.id, assets));
   const overall = Math.round(progress.reduce((a, b) => a + b, 0) / SECTIONS.length);
-  const checks = runChecks(state);
+  const checks = runChecks(state, assets);
   const passed = checks.filter((c) => c.ok).length;
   const complete = SECTIONS.filter((s) => state.tasks[s.id].status === "complete").length;
 

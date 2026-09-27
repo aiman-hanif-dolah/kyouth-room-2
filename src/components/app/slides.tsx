@@ -98,6 +98,8 @@ export function buildSlides(s: ProjectState, interactive = true, media: SlideMed
     </>
   ));
 
+  visuals("business", "Business visuals", pics((a) => a.section_id === "s3"));
+
   add("product", c.productName, <Grid><Box title="Concept"><T v={p.concept} /></Box><Box title="Description"><T v={p.description} /></Box><Box title="Features">{p.features.map((f) => <p key={f.id}><span className="text-foreground">{f.title}:</span> {f.benefit}</p>)}</Box><Box title="Differentiators"><Bullets items={p.differentiators} /></Box></Grid>);
   add("product", "Live demo", interactive ? <ProductDemo /> : <p className="text-muted-foreground">Live interactive demo shown in the app.</p>);
   visuals("product", "Mockups", [...p.mockups.filter((x) => x.url).map((x) => ({ id: x.id, url: x.url, caption: x.caption, alt: x.caption })), ...pics((a) => a.section_id === "s4")]);
@@ -118,7 +120,6 @@ export function buildSlides(s: ProjectState, interactive = true, media: SlideMed
   add("demographics", "Personas", <Grid cols={3}>{cu.personas.map((x) => <Box key={x.id} title={x.name}><p className="italic">"{x.quote}"</p><p className="mt-2 text-sm">{x.location} · {x.occupation} · {x.income}</p><p className="mt-2 text-sm"><span className="text-foreground">Goals:</span> {x.goals}</p><p className="text-sm"><span className="text-foreground">Frustrations:</span> {x.frustrations}</p></Box>)}</Grid>);
   add("demographics", "Customer journey", <div className="grid gap-2 md:grid-cols-6">{cu.journey.map((j, i) => <div key={j.id} className="rounded-lg border border-border bg-card p-3 text-sm"><p className="font-mono text-[10px] text-brand-soft">{i + 1}</p><p className="text-foreground">{j.stage}</p><p className="mt-2 text-muted-foreground">{j.pains}</p><p className="mt-2 text-success">{j.opportunities}</p></div>)}</div>);
 
-  visuals("business", "Business visuals", pics((a) => a.section_id === "s3"));
   visuals("demographics", "Customer visuals", pics((a) => a.section_id === "s5"));
 
   const cats = ["Ideation", "Analysis", "Marketing", "Image generation", "Technical/prototype"] as const;
