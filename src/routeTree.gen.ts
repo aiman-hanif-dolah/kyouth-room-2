@@ -19,6 +19,7 @@ import { Route as PresentationRouteImport } from './routes/presentation'
 import { Route as ProductRouteImport } from './routes/product'
 import { Route as PromptsRouteImport } from './routes/prompts'
 import { Route as ReviewRouteImport } from './routes/review'
+import { Route as ApiPublicIconRouteImport } from './routes/api/public/icon'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,6 +71,11 @@ const ReviewRoute = ReviewRouteImport.update({
   path: '/review',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicIconRoute = ApiPublicIconRouteImport.update({
+  id: '/api/public/icon',
+  path: '/api/public/icon',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/product': typeof ProductRoute
   '/prompts': typeof PromptsRoute
   '/review': typeof ReviewRoute
+  '/api/public/icon': typeof ApiPublicIconRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/product': typeof ProductRoute
   '/prompts': typeof PromptsRoute
   '/review': typeof ReviewRoute
+  '/api/public/icon': typeof ApiPublicIconRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/product': typeof ProductRoute
   '/prompts': typeof PromptsRoute
   '/review': typeof ReviewRoute
+  '/api/public/icon': typeof ApiPublicIconRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/product'
     | '/prompts'
     | '/review'
+    | '/api/public/icon'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/product'
     | '/prompts'
     | '/review'
+    | '/api/public/icon'
   id:
     | '__root__'
     | '/'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/product'
     | '/prompts'
     | '/review'
+    | '/api/public/icon'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -158,6 +170,7 @@ export interface RootRouteChildren {
   ProductRoute: typeof ProductRoute
   PromptsRoute: typeof PromptsRoute
   ReviewRoute: typeof ReviewRoute
+  ApiPublicIconRoute: typeof ApiPublicIconRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/icon': {
+      id: '/api/public/icon'
+      path: '/api/public/icon'
+      fullPath: '/api/public/icon'
+      preLoaderRoute: typeof ApiPublicIconRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -246,6 +266,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProductRoute: ProductRoute,
   PromptsRoute: PromptsRoute,
   ReviewRoute: ReviewRoute,
+  ApiPublicIconRoute: ApiPublicIconRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

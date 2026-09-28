@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useEditMode } from "./editmode";
-import { createAssetUpload, deleteAsset, insertAsset, updateAssetMeta } from "./write.functions";
+import { createAssetUpload, deleteAsset, insertAsset, setMainLogo, updateAssetMeta } from "./write.functions";
 import type { SectionId } from "./types";
 
 export const BUCKET = "project-assets";
@@ -116,11 +116,15 @@ interface Ctx {
   canEdit: boolean;
   error: string;
   jobs: UploadJob[];
+  /** id of the image chosen as the project's main logo ("" when none chosen). */
+  primaryLogoId: string;
   upload: (files: File[], opts: { slot: string; section: SectionId; memberId?: string }) => Promise<string[]>;
   updateAsset: (id: string, patch: Partial<Asset>) => Promise<void>;
   removeAsset: (a: Asset) => Promise<void>;
   replaceAsset: (a: Asset, file: File) => Promise<void>;
   moveAsset: (list: Asset[], index: number, dir: -1 | 1) => Promise<void>;
+  /** Choose (or clear with null) the uploaded image used as favicon, app icon and share image. */
+  chooseMainLogo: (id: string | null) => Promise<void>;
   dismissJob: (id: string) => void;
 }
 
@@ -263,10 +267,21 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
     await Promise.all([updateAsset(a.id, { sort_order: ao }), updateAsset(b.id, { sort_order: bo })]);
   };
 
+  const chooseMainLogo: Ctx["chooseMainLogo"] = async (id) => {
+    try {
+      await setMainLogo({ data: { id } });
+    } catch (e) {
+      setError((e as Error).message);
+    }
+    load();
+  };
+
+  const primaryLogoId = useMemo(() => assets.find((a) => a.category === "primary-logo" && a.kind === "image")?.id ?? "", [assets]);
+
   const value = useMemo<Ctx>(
-    () => ({ assets, urls, ready, canEdit, error, jobs, upload, updateAsset, removeAsset, replaceAsset, moveAsset, dismissJob: (id) => setJobs((js) => js.filter((j) => j.id !== id)) }),
+    () => ({ assets, urls, ready, canEdit, error, jobs, primaryLogoId, upload, updateAsset, removeAsset, replaceAsset, moveAsset, chooseMainLogo, dismissJob: (id) => setJobs((js) => js.filter((j) => j.id !== id)) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [assets, urls, ready, canEdit, error, jobs],
+    [assets, urls, ready, canEdit, error, jobs, primaryLogoId],
   );
   return <AssetsContext.Provider value={value}>{children}</AssetsContext.Provider>;
 }

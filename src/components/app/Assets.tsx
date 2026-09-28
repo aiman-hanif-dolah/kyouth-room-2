@@ -125,7 +125,7 @@ function BlurInput({ value, onSave, label, placeholder }: { value: string; onSav
 }
 
 export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset; list: Asset[]; index: number; showSection?: boolean; vertical?: boolean }) {
-  const { urls, updateAsset, removeAsset, replaceAsset, moveAsset, canEdit } = useAssets();
+  const { urls, updateAsset, removeAsset, replaceAsset, moveAsset, canEdit, chooseMainLogo } = useAssets();
   const [confirm, setConfirm] = useState(false);
   const [view, setView] = useState<number | null>(null);
   const [suggesting, setSuggesting] = useState(false);
@@ -166,6 +166,7 @@ export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset;
       </div>
       <div className="flex flex-wrap gap-1">
         <Badge tone={a.kind === "image" ? "brand" : "neutral"}>{KIND_LABEL[a.kind] ?? "Document"}</Badge>
+        {a.category === "primary-logo" && <Badge tone="brand">Main logo</Badge>}
         {showSection && <Badge>{SLOT_LABEL(a.slot)}</Badge>}
       </div>
       {a.kind === "image" && canEdit && (
@@ -176,6 +177,16 @@ export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset;
           <p className="text-[11px] text-muted-foreground">Fills caption, alt text and tags with a suggestion. Check and tweak before saving elsewhere.</p>
           {aiError && <p className="text-[11px] text-destructive">{aiError}</p>}
         </div>
+      )}
+      {a.kind === "image" && canEdit && (
+        a.category === "primary-logo" ? (
+          <Button size="sm" onClick={() => chooseMainLogo(null)} aria-label="Remove as main logo">Remove as main logo</Button>
+        ) : (
+          <Button size="sm" variant="ghost" onClick={() => chooseMainLogo(a.id)} aria-label="Set as main logo">Set as main logo</Button>
+        )
+      )}
+      {a.category === "primary-logo" && (
+        <p className="text-[11px] text-muted-foreground">This is the project's main logo. It is used as the browser tab icon, app icon and share preview image.</p>
       )}
       <BlurInput label="Caption" value={a.caption} onSave={(v) => updateAsset(a.id, { caption: v })} />
       {a.kind === "image" && <BlurInput label="Alt text" placeholder="Alt text (describe the image)" value={a.alt_text} onSave={(v) => updateAsset(a.id, { alt_text: v })} />}

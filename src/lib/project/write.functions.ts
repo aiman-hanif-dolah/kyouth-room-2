@@ -114,3 +114,22 @@ export const deleteAsset = createServerFn({ method: "POST" })
     await supabaseAdmin.storage.from(BUCKET).remove([data.storagePath]);
     return { ok: true as const };
   });
+
+/**
+ * Choose which uploaded image is the project's main logo. That image then feeds the
+ * favicon, app icon and share metadata. Only one image can hold the spot.
+ */
+export const setMainLogo = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string | null }) => data)
+  .handler(async ({ data }) => {
+    const { requireEdit } = await import("../gate.server");
+    await requireEdit();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: clearError } = await supabaseAdmin.from("project_assets").update({ category: "", updated_at: new Date().toISOString() }).eq("category", "primary-logo");
+    if (clearError) throw new Error(clearError.message);
+    if (data.id) {
+      const { error } = await supabaseAdmin.from("project_assets").update({ category: "primary-logo", updated_at: new Date().toISOString() }).eq("id", data.id).eq("kind", "image");
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true as const };
+  });
