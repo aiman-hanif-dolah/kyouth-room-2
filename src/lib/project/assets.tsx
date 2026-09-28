@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "./auth";
+import { useEditMode } from "./editmode";
+import { createAssetUpload, deleteAsset, insertAsset, updateAssetMeta } from "./write.functions";
 import type { SectionId } from "./types";
 
 export const BUCKET = "project-assets";
@@ -112,7 +113,7 @@ interface Ctx {
   assets: Asset[];
   urls: Record<string, string>;
   ready: boolean;
-  signedIn: boolean;
+  canEdit: boolean;
   error: string;
   jobs: UploadJob[];
   upload: (files: File[], opts: { slot: string; section: SectionId; memberId?: string }) => Promise<string[]>;
@@ -129,8 +130,7 @@ const AssetsContext = g.__tvAssetsCtx ?? (g.__tvAssetsCtx = createContext<Ctx | 
 const byOrder = (a: Asset, b: Asset) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at);
 
 export function AssetsProvider({ children }: { children: ReactNode }) {
-  const { session } = useAuth();
-  const userId = session?.user.id ?? null;
+  const { canEdit } = useEditMode();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [ready, setReady] = useState(false);
@@ -146,8 +146,8 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
     setError("");
   }, []);
 
+  // Everyone can see the shared library; only Edit mode can change it.
   useEffect(() => {
-    if (!userId) { setAssets([]); setReady(false); return; }
     load();
     const ch = supabase
       .channel("project-assets")
@@ -155,7 +155,7 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
       .subscribe();
     const refresh = setInterval(() => { urlByPath.current = {}; setUrls({}); load(); }, 45 * 60 * 1000);
     return () => { supabase.removeChannel(ch); clearInterval(refresh); };
-  }, [userId, load]);
+  }, [load]);
 
   // Private files: fetch short-lived signed links for any new paths.
   useEffect(() => {
@@ -175,17 +175,14 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
   const sendFile = async (file: File, jobId: string) => {
     const e = ext(file.name);
     const type = IMAGE_EXT[e] ?? DOC_EXT[e] ?? VIDEO_EXT[e] ?? AUDIO_EXT[e] ?? file.type;
-    const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-80);
-    const path = `${crypto.randomUUID()}-${safe}`;
-    const { data, error: se } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path);
-    if (se || !data) throw new Error(se?.message ?? "Could not start upload");
-    await putWithProgress(data.signedUrl, file, type, (p) => setJob(jobId, { progress: p }));
+    const { path, signedUrl } = await createAssetUpload({ data: { fileName: file.name } });
+    await putWithProgress(signedUrl, file, type, (p) => setJob(jobId, { progress: p }));
     const dims = IMAGE_EXT[e] ? await imageSize(file) : null;
     return { path, type, kind: kindOf(e), dims };
   };
 
   const upload: Ctx["upload"] = async (files, { slot, section, memberId }) => {
-    if (!userId) return [];
+    if (!canEdit) return [];
     const base = Date.now();
     const created = await Promise.all(
       files.map(async (file, i) => {
@@ -195,16 +192,16 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
         if (bad) { setJob(jobId, { error: bad }); return null; }
         try {
           const r = await sendFile(file, jobId);
-          const { data: ins, error: ie } = await supabase.from("project_assets").insert({
-            storage_path: r.path, file_name: file.name, mime_type: r.type, size_bytes: file.size, kind: r.kind,
-            width: r.dims?.w ?? null, height: r.dims?.h ?? null, section_id: section, slot,
-            caption: "", alt_text: "", tags: [], in_presentation: r.kind === "image", sort_order: base + i,
-            uploaded_by: userId, uploader_member_id: memberId ?? "",
-          }).select("id").single();
-          if (ie) { await supabase.storage.from(BUCKET).remove([r.path]); throw new Error(ie.message); }
+          const { id } = await insertAsset({
+            data: {
+              storage_path: r.path, file_name: file.name, mime_type: r.type, size_bytes: file.size, kind: r.kind,
+              width: r.dims?.w ?? null, height: r.dims?.h ?? null, section_id: section, slot,
+              in_presentation: r.kind === "image", sort_order: base + i, uploader_member_id: memberId ?? "",
+            },
+          });
           setJob(jobId, { progress: 100, done: true });
           setTimeout(() => setJobs((js) => js.filter((j) => j.id !== jobId)), 2500);
-          return (ins as { id: string } | null)?.id ?? null;
+          return id;
         } catch (err) {
           setJob(jobId, { error: `${file.name}: ${(err as Error).message}` });
           return null;
@@ -217,15 +214,22 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
 
   const updateAsset: Ctx["updateAsset"] = async (id, patch) => {
     setAssets((as) => as.map((a) => (a.id === id ? { ...a, ...patch } : a)).sort(byOrder));
-    const { error: e } = await supabase.from("project_assets").update({ ...(patch as any), updated_at: new Date().toISOString() }).eq("id", id);
-    if (e) { setError(e.message); load(); }
+    try {
+      await updateAssetMeta({ data: { id, patch: patch as Record<string, unknown> } });
+    } catch (e) {
+      setError((e as Error).message);
+      load();
+    }
   };
 
   const removeAsset: Ctx["removeAsset"] = async (a) => {
     setAssets((as) => as.filter((x) => x.id !== a.id));
-    const { error: e } = await supabase.from("project_assets").delete().eq("id", a.id);
-    if (e) { setError(e.message); load(); return; }
-    await supabase.storage.from(BUCKET).remove([a.storage_path]);
+    try {
+      await deleteAsset({ data: { id: a.id, storagePath: a.storage_path } });
+    } catch (e) {
+      setError((e as Error).message);
+      load();
+    }
   };
 
   const replaceAsset: Ctx["replaceAsset"] = async (a, file) => {
@@ -235,10 +239,16 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
     if (bad) return setJob(jobId, { error: bad });
     try {
       const r = await sendFile(file, jobId);
-      await updateAsset(a.id, { storage_path: r.path, file_name: file.name, mime_type: r.type, size_bytes: file.size, kind: r.kind, width: r.dims?.w ?? null, height: r.dims?.h ?? null });
-      await supabase.storage.from(BUCKET).remove([a.storage_path]);
+      await updateAssetMeta({
+        data: {
+          id: a.id,
+          patch: { storage_path: r.path, file_name: file.name, mime_type: r.type, size_bytes: file.size, kind: r.kind, width: r.dims?.w ?? null, height: r.dims?.h ?? null },
+          removePath: a.storage_path,
+        },
+      });
       setJob(jobId, { progress: 100, done: true });
       setTimeout(() => setJobs((js) => js.filter((j) => j.id !== jobId)), 2500);
+      await load();
     } catch (err) {
       setJob(jobId, { error: `${file.name}: ${(err as Error).message}` });
     }
@@ -254,9 +264,9 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
   };
 
   const value = useMemo<Ctx>(
-    () => ({ assets, urls, ready, signedIn: !!userId, error, jobs, upload, updateAsset, removeAsset, replaceAsset, moveAsset, dismissJob: (id) => setJobs((js) => js.filter((j) => j.id !== id)) }),
+    () => ({ assets, urls, ready, canEdit, error, jobs, upload, updateAsset, removeAsset, replaceAsset, moveAsset, dismissJob: (id) => setJobs((js) => js.filter((j) => j.id !== id)) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [assets, urls, ready, userId, error, jobs],
+    [assets, urls, ready, canEdit, error, jobs],
   );
   return <AssetsContext.Provider value={value}>{children}</AssetsContext.Provider>;
 }

@@ -19,21 +19,21 @@ export function StorageNote() {
   );
 }
 
-export function SignInToUpload() {
+export function LockedToUpload() {
   return (
     <div className="rounded-lg border border-dashed border-border-strong p-4 text-sm text-muted-foreground">
-      Sign in to upload and see the team's shared files. <Link to="/auth" className="text-brand-soft underline">Sign in</Link>
+      This is the shared team library. Switch to <strong>Edit</strong> (top of the menu, passcode needed) to upload or change files.
     </div>
   );
 }
 
 /** Drop zone + upload progress for any slot. Supports multi-select and drag and drop. */
 export function Dropzone({ slot, section, imagesOnly, label }: { slot: string; section: SectionId; imagesOnly?: boolean; label?: string }) {
-  const { upload, jobs, dismissJob, signedIn } = useAssets();
+  const { upload, jobs, dismissJob, canEdit } = useAssets();
   const ref = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [rejected, setRejected] = useState<string[]>([]);
-  if (!signedIn) return <SignInToUpload />;
+  if (!canEdit) return <LockedToUpload />;
   const mine = jobs.filter((j) => j.slot === slot);
   const send = (list: FileList | null) => {
     if (!list || !list.length) return;
@@ -188,7 +188,7 @@ export function resolveSlotUrl(url: string, urls: Record<string, string>): strin
 
 /** ImageSlot with a direct upload button: files go to this slot's shared gallery and the first one is linked into the slot. */
 export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section }: { item: { id: string; url: string; caption: string; prompt: string }; onChange: (v: { id: string; url: string; caption: string; prompt: string }) => void; onDelete?: () => void; aspect?: string; slot: string; section: SectionId }) {
-  const { upload, urls, jobs, signedIn } = useAssets();
+  const { upload, urls, jobs, canEdit } = useAssets();
   const ref = useRef<HTMLInputElement>(null);
   const [rejected, setRejected] = useState<string[]>([]);
   const busy = jobs.some((j) => j.slot === slot && !j.done && !j.error);
@@ -204,7 +204,7 @@ export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section 
   return (
     <div>
       <ImageSlot item={{ ...item, url: resolveSlotUrl(item.url, urls) }} onChange={onChange} {...(onDelete ? { onDelete } : {})} {...(aspect ? { aspect } : {})} />
-      {signedIn ? (
+      {canEdit ? (
         <div className="mt-2">
           <Button size="sm" variant="brand" disabled={busy} onClick={() => ref.current?.click()}>
             <UploadCloud className="size-3.5" /> {busy ? "Uploading…" : item.url ? "Upload a different image" : "Upload image"}
@@ -213,7 +213,7 @@ export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section 
           {rejected.length > 0 && <p className="mt-1 text-[11px] text-destructive">Only images go here: {rejected.join(", ")} skipped.</p>}
         </div>
       ) : (
-        <p className="mt-2 text-[11px] text-muted-foreground"><Link to="/auth" className="text-brand-soft underline">Sign in</Link> to upload an image directly.</p>
+        <p className="mt-2 text-[11px] text-muted-foreground">Switch to Edit mode (passcode) to upload an image directly.</p>
       )}
     </div>
   );
