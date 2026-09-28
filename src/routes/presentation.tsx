@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Maximize, Pause, Play, Printer, RotateCcw, X, StickyNote } from "lucide-react";
 import { useProject, memberName } from "@/lib/project/store";
-import { buildSlides } from "@/components/app/slides";
+import { buildSlides } from "@/components/app/presentationSlides";
 import { useAssets } from "@/lib/project/assets";
 import { Badge, Button, Card, PageHeader, NumField } from "@/components/app/kit";
 import { SectionTaskPanel } from "@/components/app/SectionTask";
@@ -96,8 +96,8 @@ function PresentationPage() {
       {printing && (
         <div className="fixed inset-0 z-[100] overflow-auto bg-background p-6">
           {buildSlides(state, false, media).map((s, i) => (
-            <section key={i} className="print-slide mb-6 min-h-[60vh] rounded-xl border border-border p-10">
-              <p className="mb-4 text-xs text-muted-foreground">{i + 1}. {s.title}</p>
+            <section key={i} className="print-slide deck-stage mb-6" data-tone={s.tone}>
+              <p className="deck-header">{i + 1} / 15</p><h2 className="deck-title">{s.title}</h2>
               {s.body}
             </section>
           ))}
@@ -165,16 +165,18 @@ function Presenter({ start, onClose }: { start: number; onClose: () => void }) {
       <div className="h-0.5 bg-elevated"><div className="h-full bg-brand transition-all" style={{ width: `${((idx + 1) / slides.length) * 100}%` }} /></div>
 
       <div className="flex min-h-0 flex-1">
-        <div className="flex-1 overflow-auto px-6 py-8 md:px-16 md:py-12">
-          <div key={idx} className="mx-auto flex h-full max-w-6xl flex-col animate-in fade-in duration-300">
-            <p className="font-mono text-xs text-brand-soft">{String(idx + 1).padStart(2, "0")} / {slides.length}</p>
-            <h2 className="mb-8 mt-2 text-3xl font-normal tracking-[-0.9px] md:text-[42px]">{slide.title}</h2>
-            <div className="flex-1">{slide.body}</div>
+        <div className="min-w-0 flex-1 overflow-auto">
+          <div key={idx} className="deck-stage deck-enter" data-tone={slide.tone}>
+            <div className="mx-auto max-w-[1400px]">
+              <p className="deck-header"><span>{state.company.name} / {part.title}</span><span>{String(idx + 1).padStart(2, "0")} / {slides.length}</span></p>
+              {idx !== 0 && <h2 className="deck-title">{slide.title}</h2>}
+              {slide.body}
+            </div>
           </div>
         </div>
         {notes && (
           <aside className="w-80 shrink-0 overflow-auto border-l border-border bg-card p-4 text-sm">
-            <p className="text-xs text-muted-foreground">Planned {part.minutes} min</p>
+            <p className="text-xs text-muted-foreground">Planned {part.minutes} min</p><details className="mt-4"><summary className="cursor-pointer text-brand-soft">Section reference & uploaded visuals</summary><div className="mt-4">{slide.detail}</div></details>
             <p className="mt-3 text-xs font-medium text-muted-foreground">Key points</p>
             <p className="text-subtle">{part.keyPoints || "None"}</p>
             <p className="mt-3 text-xs font-medium text-muted-foreground">Speaker notes</p>
