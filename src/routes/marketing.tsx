@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useProject, uid } from "@/lib/project/store";
-import { AssetGallery, StorageNote } from "@/components/app/Assets";
+import { AssetGallery, SlotImageSlot, StorageNote } from "@/components/app/Assets";
 import { Area, Badge, Button, Card, CopyButton, PageHeader, RowControls, move, AiNotConnected } from "@/components/app/kit";
 import { SectionTaskPanel } from "@/components/app/SectionTask";
 import type { Platform } from "@/lib/project/types";
