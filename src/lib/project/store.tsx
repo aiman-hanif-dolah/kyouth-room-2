@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { createSeed, DRAFT_SPEAKER_NOTES, SEED_VERSION } from "./seed";
 import type { ProjectState, SectionId } from "./types";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "./auth";
+import { useEditMode } from "./editmode";
+import { saveWorkspace } from "./write.functions";
 
 const KEY = "tech-ventura-project-v1";
 const MIGRATED_KEY = "tech-ventura-cloud-migrated-v1";
@@ -15,6 +16,7 @@ interface Ctx {
   hydrated: boolean;
   sync: SyncStatus;
   syncError: string;
+  canEdit: boolean;
   update: (fn: (draft: ProjectState) => void, section?: SectionId) => void;
   reset: () => void;
 }
@@ -38,14 +40,15 @@ function normalize(raw: unknown): ProjectState | null {
 }
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
-  const { session } = useAuth();
-  const userId = session?.user.id ?? null;
+  const { canEdit } = useEditMode();
   const [state, setState] = useState<ProjectState>(() => createSeed());
   const [hydrated, setHydrated] = useState(false);
   const [sync, setSync] = useState<SyncStatus>("local");
   const [syncError, setSyncError] = useState("");
   const stateRef = useRef(state);
   stateRef.current = state;
+  const canEditRef = useRef(canEdit);
+  canEditRef.current = canEdit;
   const clientId = useRef(Math.random().toString(36).slice(2) + Date.now().toString(36));
   const lastSynced = useRef<string>("");
   const cloudReady = useRef(false);
@@ -71,13 +74,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, [state, hydrated]);
 
-  // Shared workspace: load once per sign-in, migrate local copy only if the cloud is empty, then live-subscribe.
+  // Shared workspace: everyone loads and live-subscribes. The first visitor in Edit
+  // mode seeds an empty shared copy from this browser's local copy (never overwrites).
   useEffect(() => {
-    if (!hydrated || !userId) {
-      cloudReady.current = false;
-      setSync("local");
-      return;
-    }
+    if (!hydrated) return;
     let cancelled = false;
     setSync("loading");
     const apply = (raw: unknown) => {
@@ -92,17 +92,17 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (error) { setSync("error"); setSyncError(error.message); return; }
       if (data) {
         apply(data.state);
-      } else {
+      } else if (canEditRef.current) {
         // One-time migration: the shared copy is empty, so seed it from this browser's copy.
         const local = stateRef.current;
-        const { error: insErr } = await supabase.from("workspace_state").insert({ id: ROW_ID, state: local as any, client_id: clientId.current, updated_by: userId });
-        if (insErr) {
-          // Someone else created it first: never overwrite, load theirs.
-          const again = await supabase.from("workspace_state").select("state").eq("id", ROW_ID).maybeSingle();
-          if (again.data) apply(again.data.state);
-        } else {
+        try {
+          await saveWorkspace({ data: { state: local, clientId: clientId.current } });
           lastSynced.current = JSON.stringify(local);
           try { localStorage.setItem(MIGRATED_KEY, new Date().toISOString()); } catch { /* ignore */ }
+        } catch {
+          // Someone else created it first, or edit locked: never overwrite, load theirs.
+          const again = await supabase.from("workspace_state").select("state").eq("id", ROW_ID).maybeSingle();
+          if (again.data) apply(again.data.state);
         }
       }
       if (cancelled) return;
@@ -123,25 +123,30 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       cloudReady.current = false;
       supabase.removeChannel(channel);
     };
-  }, [hydrated, userId]);
+  }, [hydrated]);
 
-  // Debounced save of local edits to the shared copy.
+  // Debounced save of local edits to the shared copy (Edit mode only).
   useEffect(() => {
-    if (!userId || !cloudReady.current) return;
+    if (!canEdit || !cloudReady.current) return;
     const json = JSON.stringify(state);
     if (json === lastSynced.current) return;
     setSync("saving");
     const t = setTimeout(async () => {
-      const { error } = await supabase.from("workspace_state").update({ state: state as any, client_id: clientId.current, updated_by: userId, updated_at: new Date().toISOString() }).eq("id", ROW_ID);
-      if (error) { setSync("error"); setSyncError(error.message); return; }
-      lastSynced.current = json;
-      setSync("synced");
-      setSyncError("");
+      try {
+        await saveWorkspace({ data: { state, clientId: clientId.current } });
+        lastSynced.current = json;
+        setSync("synced");
+        setSyncError("");
+      } catch (e) {
+        setSync("error");
+        setSyncError((e as Error).message);
+      }
     }, 700);
     return () => clearTimeout(t);
-  }, [state, userId]);
+  }, [state, canEdit]);
 
   const update = useCallback((fn: (d: ProjectState) => void, section?: SectionId) => {
+    if (!canEditRef.current) return; // Published mode is read-only.
     setState((prev) => {
       const draft = structuredClone(prev);
       fn(draft);
@@ -152,10 +157,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const reset = useCallback(() => {
+    if (!canEditRef.current) return;
     setState(createSeed());
   }, []);
 
-  const value = useMemo(() => ({ state, hydrated, sync, syncError, update, reset }), [state, hydrated, sync, syncError, update, reset]);
+  const value = useMemo(() => ({ state, hydrated, sync, syncError, canEdit, update, reset }), [state, hydrated, sync, syncError, canEdit, update, reset]);
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;
 }
 

@@ -21,7 +21,7 @@ export const Route = createFileRoute("/assets")({
 });
 
 function AssetsPage() {
-  const { assets, ready, signedIn } = useAssets();
+  const { assets, ready, canEdit } = useAssets();
   const [section, setSection] = useState<SectionId>("s1");
   const [filter, setFilter] = useState<"all" | SectionId>("all");
   const [kind, setKind] = useState<"all" | "image" | "document" | "video" | "audio">("all");
@@ -29,7 +29,7 @@ function AssetsPage() {
   const sel = "rounded-md border border-input bg-background px-2 py-1.5 text-sm";
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:px-8">
-      <PageHeader eyebrow="Shared files" title="Project assets" description="Upload images, documents, video and audio for any of the eight tasks. Everyone signed in sees the same files. Images marked for the presentation appear in that part of the deck automatically." />
+      <PageHeader eyebrow="Shared files" title="Project assets" description="Upload images, documents, video and audio for any of the eight tasks. Everyone with the link sees the same files; uploading needs Edit mode. Images marked for the presentation appear in that part of the deck automatically." />
       <Card className="mt-6" title="Upload" subtitle="Choose which task the files belong to, then drop or pick as many files as you need.">
         <label className="mb-3 flex items-center gap-2 text-sm">
           Task
@@ -40,7 +40,7 @@ function AssetsPage() {
         <Dropzone slot={`library.${section}`} section={section} />
         <div className="mt-3"><StorageNote /></div>
       </Card>
-      {signedIn && (
+      {ready && (
         <Card className="mt-4" title={`Library (${list.length} of ${assets.length})`} action={
           <div className="flex gap-2">
             <select aria-label="Filter task" className={sel} value={filter} onChange={(e) => setFilter(e.target.value as any)}>
