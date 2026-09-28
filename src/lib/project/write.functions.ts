@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireEdit } from "../gate.functions";
 import type { Database } from "@/integrations/supabase/types";
+
+// Edit-mode check dynamically imports the server-only gate inside each handler
+// (a module-scope import would leak server code into the client bundle).
 
 const BUCKET = "project-assets";
 
@@ -8,6 +10,7 @@ const BUCKET = "project-assets";
 export const saveWorkspace = createServerFn({ method: "POST" })
   .inputValidator((data: { state: unknown; clientId: string }) => data)
   .handler(async ({ data }) => {
+    const { requireEdit } = await import("../gate.server");
     await requireEdit();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
@@ -21,6 +24,7 @@ export const saveWorkspace = createServerFn({ method: "POST" })
 export const createAssetUpload = createServerFn({ method: "POST" })
   .inputValidator((data: { fileName: string }) => data)
   .handler(async ({ data }) => {
+    const { requireEdit } = await import("../gate.server");
     await requireEdit();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const safe = String(data.fileName ?? "file").replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-80) || "file";
@@ -49,6 +53,7 @@ interface AssetInsert {
 export const insertAsset = createServerFn({ method: "POST" })
   .inputValidator((data: AssetInsert) => data)
   .handler(async ({ data }) => {
+    const { requireEdit } = await import("../gate.server");
     await requireEdit();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
@@ -86,6 +91,7 @@ const META_FIELDS = ["caption", "alt_text", "tags", "category", "section_id", "s
 export const updateAssetMeta = createServerFn({ method: "POST" })
   .inputValidator((data: { id: string; patch: Record<string, unknown>; removePath?: string }) => data)
   .handler(async ({ data }) => {
+    const { requireEdit } = await import("../gate.server");
     await requireEdit();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const update: Database["public"]["Tables"]["project_assets"]["Update"] = { updated_at: new Date().toISOString() };
@@ -100,6 +106,7 @@ export const updateAssetMeta = createServerFn({ method: "POST" })
 export const deleteAsset = createServerFn({ method: "POST" })
   .inputValidator((data: { id: string; storagePath: string }) => data)
   .handler(async ({ data }) => {
+    const { requireEdit } = await import("../gate.server");
     await requireEdit();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("project_assets").delete().eq("id", data.id);
