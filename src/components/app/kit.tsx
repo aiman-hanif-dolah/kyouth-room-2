@@ -251,33 +251,94 @@ export function AiNotConnected({ what = "AI drafting" }: { what?: string }) {
 }
 
 /** Prompt slot: copyable image prompt, optional pasted image link. Uploads go to the shared asset galleries. */
-export function ImageSlot({ item, onChange, aspect = "aspect-[4/3]", onView }: { item: ImageItem; onChange: (v: ImageItem) => void; aspect?: string; onView?: () => void }) {
+export function ImageSlot({
+  item,
+  onChange,
+  aspect = "aspect-[4/3]",
+  onView,
+  onUpload,
+  isUploading = false,
+}: {
+  item: ImageItem;
+  onChange: (v: ImageItem) => void;
+  aspect?: string;
+  onView?: () => void;
+  onUpload?: () => void;
+  isUploading?: boolean;
+}) {
   const [url, setUrl] = useState("");
   const [err, setErr] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
   const img = <img src={item.url} alt={item.caption || "Uploaded visual"} className="h-full w-full object-cover" />;
+
   return (
     <div className="rounded-lg border border-border bg-background p-3">
-      <div className={cn("relative mb-3 overflow-hidden rounded-md border border-dashed border-border-strong bg-elevated/50", aspect)}>
+      <div
+        className={cn(
+          "group relative mb-3 overflow-hidden rounded-md border border-dashed border-border-strong bg-elevated/50 transition-colors",
+          aspect,
+          onUpload && !isUploading && "cursor-pointer hover:border-brand hover:bg-brand/5"
+        )}
+        onClick={() => {
+          if (!item.url && onUpload && !isUploading) {
+            onUpload();
+          }
+        }}
+      >
         {item.url ? (
-          onView ? (
-            <button type="button" onClick={onView} aria-label="View full size" className="block h-full w-full cursor-zoom-in">
-              {img}
-            </button>
-          ) : img
+          <>
+            {onView ? (
+              <button type="button" onClick={onView} aria-label="View full size" className="block h-full w-full cursor-zoom-in">
+                {img}
+              </button>
+            ) : (
+              img
+            )}
+            {/* Quick in-frame actions overlay */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1.5 bg-black/40 opacity-0 backdrop-blur-[1px] transition-opacity group-hover:opacity-100">
+              {onUpload && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isUploading) onUpload();
+                  }}
+                  className="pointer-events-auto inline-flex items-center gap-1 rounded bg-background/90 px-2 py-1 text-[11px] font-medium text-foreground shadow-sm hover:bg-background"
+                >
+                  <ImagePlus className="size-3" /> {isUploading ? "Uploading…" : "Replace"}
+                </button>
+              )}
+              {onView && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onView();
+                  }}
+                  className="pointer-events-auto inline-flex items-center gap-1 rounded bg-background/90 px-2 py-1 text-[11px] font-medium text-foreground shadow-sm hover:bg-background"
+                >
+                  Zoom
+                </button>
+              )}
+            </div>
+          </>
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-1 p-3 text-center text-xs text-muted-foreground">
-            <ImagePlus className="size-5" />
-            No image yet. Upload directly with the button below, or paste a link.
+          <div className="flex h-full flex-col items-center justify-center gap-1.5 p-3 text-center text-xs text-muted-foreground">
+            <ImagePlus className={cn("size-6", onUpload && "text-brand")} />
+            <span className="font-medium text-foreground">
+              {isUploading ? "Uploading image…" : onUpload ? "Click here to upload image" : "No image yet"}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              {onUpload ? "or paste a link below" : "Paste an image link below"}
+            </span>
           </div>
         )}
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {item.url && (
+      <div className="flex flex-wrap items-center justify-between gap-1.5">
+        {item.url ? (
           <Button size="sm" variant="ghost" onClick={() => onChange({ ...item, url: "" })}>
-            Clear
+            Clear image
           </Button>
-        )}
+        ) : <span />}
       </div>
       <div className="mt-2 flex gap-1.5">
         <input aria-label="Image URL" placeholder="https://… image link" value={url} onChange={(e) => setUrl(e.target.value)} className={cn(inputCls, "h-8 py-1 text-xs")} />

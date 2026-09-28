@@ -264,22 +264,37 @@ export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section 
   const resolved = resolveSlotUrl(item.url, urls);
   return (
     <div>
-      <ImageSlot item={{ ...item, url: resolved }} onChange={onChange} {...(aspect ? { aspect } : {})} {...(resolved ? { onView: () => setPreview(true) } : {})} />
+      <ImageSlot
+        item={{ ...item, url: resolved }}
+        onChange={onChange}
+        {...(aspect ? { aspect } : {})}
+        {...(resolved ? { onView: () => setPreview(true) } : {})}
+        onUpload={canEdit ? () => ref.current?.click() : undefined}
+        isUploading={busy}
+      />
       {canEdit ? (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <Button size="sm" variant="brand" disabled={busy} onClick={() => ref.current?.click()}>
-            <UploadCloud className="size-3.5" /> {busy ? "Uploading…" : item.url ? "Upload a different image" : "Upload image"}
-          </Button>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-1.5">
+          <input
+            ref={ref}
+            type="file"
+            multiple
+            accept={IMAGE_ACCEPT}
+            className="hidden"
+            data-testid={`slot-upload-${slot}`}
+            onChange={(e) => {
+              send(e.target.files);
+              e.target.value = "";
+            }}
+          />
           {onDelete && (
-            <Button size="sm" variant="danger" aria-label="Delete visual" onClick={onDelete}>
-              <Trash2 className="size-3.5" />
+            <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" aria-label="Delete visual" onClick={onDelete}>
+              <Trash2 className="size-3.5" /> Delete card
             </Button>
           )}
-          <input ref={ref} type="file" multiple accept={IMAGE_ACCEPT} className="hidden" data-testid={`slot-upload-${slot}`} onChange={(e) => { send(e.target.files); e.target.value = ""; }} />
           {rejected.length > 0 && <p className="w-full text-[11px] text-destructive">Only images go here: {rejected.join(", ")} skipped.</p>}
         </div>
       ) : (
-        <p className="mt-2 text-[11px] text-muted-foreground">Switch to Edit mode (passcode) to upload an image directly.</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">Switch to Edit mode (passcode) to upload an image directly.</p>
       )}
       {preview && resolved && (
         <Lightbox items={[{ src: resolved, alt: item.caption || "Uploaded visual", title: item.caption }]} index={0} onClose={() => setPreview(false)} />

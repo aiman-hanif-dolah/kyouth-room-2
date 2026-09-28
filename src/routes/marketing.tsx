@@ -96,7 +96,6 @@ function MarketingPage() {
             <div className="grid gap-0 md:grid-cols-[220px_1fr]">
               <div className="border-b border-border p-3 md:border-b-0 md:border-r">
                 <SlotImageSlot aspect={tab === "tiktok" ? "aspect-[9/16] max-h-64 mx-auto" : "aspect-square"} item={{ id: s.id, url: s.imageUrl, caption: s.title, prompt: s.imagePrompt }} slot={`marketing.sample.${s.id}`} section="s6" onChange={(v) => u((d) => { d.samples[i].imageUrl = v.url; d.samples[i].imagePrompt = v.prompt; d.samples[i].title = v.caption; })} />
-                <div className="mt-3"><AssetGallery slot={`marketing.sample.${s.id}`} section="s6" imagesOnly cols="grid-cols-1" /></div>
               </div>
               <div className="space-y-2 p-4">
                 <div className="flex items-center justify-between gap-2">
