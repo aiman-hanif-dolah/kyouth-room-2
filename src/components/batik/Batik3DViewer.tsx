@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { Expand, Minimize2, RotateCcw, RotateCw } from "lucide-react";
 import * as THREE from "three";
-import type { Design } from "@/lib/batik/catalog";
+import { productSizeScale, type Design } from "@/lib/batik/catalog";
 import { designImage, designSvg } from "@/lib/batik/design";
-
-function fittedCameraDistance(camera: THREE.PerspectiveCamera, size: THREE.Vector3) {
-  const verticalFov = THREE.MathUtils.degToRad(camera.fov);
-  const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
-  const verticalDistance = size.y / 2 / Math.tan(verticalFov / 2);
-  const horizontalDistance = Math.hypot(size.x, size.z) / 2 / Math.tan(horizontalFov / 2);
-  return Math.max(verticalDistance, horizontalDistance) * 1.12 + size.z / 2;
-}
 
 interface Batik3DViewerProps {
   design: Design;
@@ -19,17 +12,31 @@ interface Batik3DViewerProps {
 
 export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewerProps) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const designRef = useRef(design);
+  designRef.current = design;
   const [loading, setLoading] = useState(true);
   const [autoRotate, setAutoRotate] = useState(true);
   const [renderError, setRenderError] = useState("");
+  const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState("");
 
   // Keep references to Three.js objects
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const cameraTargetRef = useRef(new THREE.Vector3());
+  const cameraDirectionRef = useRef(new THREE.Vector3(0, 0.08, 1).normalize());
   const cameraDistanceRef = useRef(5.2);
   const modelSizeRef = useRef<THREE.Vector3 | null>(null);
   const modelGroupRef = useRef<THREE.Group | null>(null);
+  const productGeometryRef = useRef<THREE.Group | null>(null);
+  const productCenterYRef = useRef(0);
+  const plinthRef = useRef<THREE.Mesh | null>(null);
+  const plinthTopRef = useRef<THREE.Mesh | null>(null);
+  const fabricMaterialsRef = useRef(new Set<THREE.MeshStandardMaterial>());
+  const targetRotationRef = useRef({ x: 0, y: 0 });
+  const hasMountedTextureEffectRef = useRef(false);
   const textureRef = useRef<THREE.CanvasTexture | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const isDraggingRef = useRef(false);
@@ -39,6 +46,59 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
   autoRotateRef.current = autoRotate;
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
+  const fitCameraRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const updateFullscreen = () => {
+      setFullscreen(document.fullscreenElement === viewerRef.current);
+      setFullscreenError("");
+    };
+    document.addEventListener("fullscreenchange", updateFullscreen);
+    return () => document.removeEventListener("fullscreenchange", updateFullscreen);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    setFullscreenError("");
+    try {
+      if (document.fullscreenElement === viewer) await document.exitFullscreen();
+      else if (viewer.requestFullscreen) await viewer.requestFullscreen();
+      else setFullscreenError("Full-screen view is unavailable in this browser.");
+    } catch {
+      setFullscreenError("The browser could not open full-screen view.");
+    }
+  };
+
+  const makeFabricMaterial = (texture: THREE.CanvasTexture) => {
+    const finish = designRef.current.material;
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      roughness: finish === "Satin" ? 0.35 : finish === "Linen blend" ? 0.85 : 0.65,
+      metalness: finish === "Satin" ? 0.12 : 0.02,
+      side: THREE.DoubleSide,
+    });
+    fabricMaterialsRef.current.add(material);
+    return material;
+  };
+
+  const fitFabricUvs = (geometry: THREE.BufferGeometry) => {
+    const position = geometry.getAttribute("position");
+    const uv = geometry.getAttribute("uv");
+    if (!position || !uv) return;
+    const bounds = new THREE.Box3().setFromBufferAttribute(position as THREE.BufferAttribute);
+    const size = bounds.getSize(new THREE.Vector3());
+    for (let index = 0; index < uv.count; index++) {
+      uv.setXY(index, (position.getX(index) - bounds.min.x) / Math.max(size.x, 0.001), (position.getY(index) - bounds.min.y) / Math.max(size.y, 0.001));
+    }
+    uv.needsUpdate = true;
+  };
+
+  const turnModel = (angle: number) => {
+    if (!modelGroupRef.current) return;
+    targetRotationRef.current.y = (autoRotate ? modelGroupRef.current.rotation.y : targetRotationRef.current.y) + angle;
+    setAutoRotate(false);
+  };
 
   // Compose the full design onto a high-res canvas for the 3D product texture.
   const renderBatikCanvas = (d: Design): Promise<HTMLCanvasElement> => {
@@ -154,7 +214,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
           }
         }
         bagGeo.computeVertexNormals();
-        const bagMesh = new THREE.Mesh(bagGeo, batikMaterial);
+        fitFabricUvs(bagGeo);
+        const bagMesh = new THREE.Mesh(bagGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
         bagMesh.castShadow = true;
         bagMesh.receiveShadow = true;
         group.add(bagMesh);
@@ -197,7 +258,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
           pos.setZ(i, z * (1 + puff * 0.9));
         }
         cushionGeo.computeVertexNormals();
-        const cushionMesh = new THREE.Mesh(cushionGeo, batikMaterial);
+        fitFabricUvs(cushionGeo);
+        const cushionMesh = new THREE.Mesh(cushionGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
         cushionMesh.castShadow = true;
         cushionMesh.receiveShadow = true;
         group.add(cushionMesh);
@@ -208,46 +270,89 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       case "shirt":
       case "kurung":
       case "kebaya": {
-        // Apparel / Garment Mannequin silhouette
-        // Torso
-        const bodyGeo = new THREE.CylinderGeometry(0.85, 1.05, 2.3, 32, 16);
-        bodyGeo.scale(1.15, 1, 0.55); // Flatter torso depth
-        const bodyMesh = new THREE.Mesh(bodyGeo, batikMaterial);
-        bodyMesh.castShadow = true;
-        group.add(bodyMesh);
+        const isTee = productId === "tee";
+        const isShirt = productId === "shirt";
+        const isKurung = productId === "kurung";
+        const isKebaya = productId === "kebaya";
+        const top = isTee ? 1.12 : 1.2;
+        const hem = isTee ? -1.12 : isKurung ? -1.55 : -1.28;
+        const shoulder = isTee ? 0.48 : 0.52;
+        const outerSleeve = isTee ? 1.45 : 1.62;
+        const waist = isKebaya ? 0.37 : 0.7;
+        const sideHem = isKurung ? -1.48 : hem;
+        const garmentShape = new THREE.Shape();
+        garmentShape.moveTo(-waist, sideHem);
+        garmentShape.lineTo(waist, sideHem);
+        garmentShape.lineTo(waist, isKebaya ? -0.2 : 0.35);
+        garmentShape.lineTo(1.05, 0.75);
+        garmentShape.lineTo(outerSleeve, 0.08);
+        garmentShape.lineTo(outerSleeve - 0.3, -0.1);
+        garmentShape.lineTo(waist + 0.05, 0.45);
+        garmentShape.lineTo(shoulder, top);
+        garmentShape.lineTo(0.28, top);
+        garmentShape.quadraticCurveTo(0, top - 0.34, -0.28, top);
+        garmentShape.lineTo(-shoulder, top);
+        garmentShape.lineTo(-waist - 0.05, 0.45);
+        garmentShape.lineTo(-outerSleeve + 0.3, -0.1);
+        garmentShape.lineTo(-outerSleeve, 0.08);
+        garmentShape.lineTo(-1.05, 0.75);
+        garmentShape.lineTo(-waist, isKebaya ? -0.2 : 0.35);
+        garmentShape.closePath();
+        if (isKebaya) {
+          garmentShape.moveTo(-0.48, top - 0.02);
+          garmentShape.lineTo(0.48, top - 0.02);
+          garmentShape.lineTo(0.12, -0.5);
+          garmentShape.lineTo(-0.32, -0.5);
+          garmentShape.closePath();
+        }
+        const garmentGeo = new THREE.ExtrudeGeometry(garmentShape, {
+          depth: 0.24,
+          bevelEnabled: true,
+          bevelSegments: 3,
+          steps: 1,
+          bevelSize: 0.055,
+          bevelThickness: 0.06,
+        });
+        fitFabricUvs(garmentGeo);
+        const garmentMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
+        garmentMaterial.map!.wrapS = THREE.ClampToEdgeWrapping;
+        garmentMaterial.map!.wrapT = THREE.ClampToEdgeWrapping;
+        const garment = new THREE.Mesh(garmentGeo, garmentMaterial);
+        garment.position.z = -0.12;
+        garment.castShadow = true;
+        group.add(garment);
 
-        // Sleeves (left & right angled cylinders)
-        const sleeveGeoL = new THREE.CylinderGeometry(0.35, 0.38, 0.9, 16);
-        sleeveGeoL.scale(1, 1, 0.6);
-        const sleeveL = new THREE.Mesh(sleeveGeoL, batikMaterial);
-        sleeveL.position.set(-1.1, 0.7, 0);
-        sleeveL.rotation.z = Math.PI / 4.2;
-        group.add(sleeveL);
-
-        const sleeveGeoR = new THREE.CylinderGeometry(0.35, 0.38, 0.9, 16);
-        sleeveGeoR.scale(1, 1, 0.6);
-        const sleeveR = new THREE.Mesh(sleeveGeoR, batikMaterial);
-        sleeveR.position.set(1.1, 0.7, 0);
-        sleeveR.rotation.z = -Math.PI / 4.2;
-        group.add(sleeveR);
-
-        // Collar ring / neck
-        const collarGeo = new THREE.TorusGeometry(0.42, 0.08, 16, 32);
-        const collar = new THREE.Mesh(collarGeo, darkAccentMat);
-        collar.rotation.x = Math.PI / 2;
-        collar.position.y = 1.15;
-        group.add(collar);
+        if (isShirt) {
+          const placket = new THREE.Mesh(new THREE.BoxGeometry(0.045, 1.65, 0.035), darkAccentMat);
+          placket.position.set(0, 0.04, 0.145);
+          group.add(placket);
+          for (const y of [0.62, 0.28, -0.06, -0.4]) {
+            const button = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), woodMat);
+            button.scale.set(1, 1, 0.35);
+            button.position.set(0, y, 0.18);
+            group.add(button);
+          }
+          for (const side of [-1, 1]) {
+            const collarPoint = new THREE.Shape();
+            collarPoint.moveTo(side * 0.28, top - 0.02);
+            collarPoint.lineTo(side * 0.55, top + 0.02);
+            collarPoint.lineTo(side * 0.3, top - 0.38);
+            collarPoint.closePath();
+            const collar = new THREE.Mesh(new THREE.ShapeGeometry(collarPoint), makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+            collar.position.z = 0.13;
+            group.add(collar);
+          }
+        }
 
         // If kurung/kebaya: add longer skirt/flair
-        if (productId === "kurung" || productId === "kebaya") {
-          const skirtGeo = new THREE.CylinderGeometry(1.05, 1.45, 1.8, 32);
-          skirtGeo.scale(1.1, 1, 0.6);
-          const skirt = new THREE.Mesh(skirtGeo, batikMaterial);
-          skirt.position.y = -1.9;
+        if (isKurung || isKebaya) {
+          const skirtGeo = new THREE.CylinderGeometry(isKurung ? 0.72 : 0.78, isKurung ? 1.05 : 1.2, isKurung ? 1.45 : 1.75, 40, 12);
+          skirtGeo.scale(isKurung ? 0.92 : 1.1, 1, 0.6);
+          const skirtMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
+          const skirt = new THREE.Mesh(skirtGeo, skirtMaterial);
+          skirt.position.y = isKurung ? -1.9 : -1.72;
+          skirt.castShadow = true;
           group.add(skirt);
-          group.position.y = 0.5;
-        } else {
-          group.position.y = -0.1;
         }
         break;
       }
@@ -262,15 +367,11 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
           pos.setZ(i, Math.sin(x * 2.2) * 0.35 + Math.cos(y * 1.8) * 0.25);
         }
         scarfGeo.computeVertexNormals();
-        const scarfMesh = new THREE.Mesh(
-          scarfGeo,
-          new THREE.MeshStandardMaterial({
-            map: (batikMaterial as THREE.MeshStandardMaterial).map,
-            side: THREE.DoubleSide,
-            roughness: 0.4,
-            metalness: 0.15,
-          })
-        );
+        fitFabricUvs(scarfGeo);
+        const scarfMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
+        scarfMaterial.roughness = 0.4;
+        scarfMaterial.metalness = 0.12;
+        const scarfMesh = new THREE.Mesh(scarfGeo, scarfMaterial);
         scarfMesh.castShadow = true;
         group.add(scarfMesh);
         break;
@@ -278,38 +379,41 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
 
       case "sarong":
       case "fabric": {
-        // Cylindrical fabric wrap drape or roll
-        const cylGeo = new THREE.CylinderGeometry(1.1, 1.25, 3.0, 36, 16, true);
-        const pos = cylGeo.getAttribute("position");
-        for (let i = 0; i < pos.count; i++) {
-          const theta = Math.atan2(pos.getZ(i), pos.getX(i));
-          const wave = Math.sin(theta * 8) * 0.05;
-          pos.setX(i, pos.getX(i) * (1 + wave));
-          pos.setZ(i, pos.getZ(i) * (1 + wave));
+        const isSarong = productId === "sarong";
+        const textileGeo = isSarong
+          ? new THREE.PlaneGeometry(2.3, 2.8, 36, 32)
+          : new THREE.PlaneGeometry(2.5, 3.2, 36, 40);
+        const textilePositions = textileGeo.getAttribute("position");
+        for (let i = 0; i < textilePositions.count; i++) {
+          const x = textilePositions.getX(i);
+          const y = textilePositions.getY(i);
+          textilePositions.setZ(i, Math.sin(x * 7.5) * 0.065 + Math.sin(y * 1.8) * 0.045);
         }
-        cylGeo.computeVertexNormals();
-        const cylMat = new THREE.MeshStandardMaterial({
-          map: (batikMaterial as THREE.MeshStandardMaterial).map,
-          side: THREE.DoubleSide,
-          roughness: 0.6,
-        });
-        const sarongMesh = new THREE.Mesh(cylGeo, cylMat);
-        sarongMesh.castShadow = true;
-        group.add(sarongMesh);
+        textileGeo.computeVertexNormals();
+        fitFabricUvs(textileGeo);
+        const textileMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
+        const textile = new THREE.Mesh(textileGeo, textileMaterial);
+        textile.castShadow = true;
+        group.add(textile);
 
-        // Top tied rim
-        const rimGeo = new THREE.TorusGeometry(1.15, 0.09, 16, 32);
-        const rim = new THREE.Mesh(rimGeo, darkAccentMat);
-        rim.rotation.x = Math.PI / 2;
-        rim.position.y = 1.45;
-        group.add(rim);
+        if (isSarong) {
+          const waistband = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.14, 0.08), darkAccentMat);
+          waistband.position.y = 1.36;
+          group.add(waistband);
+        } else {
+          const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 2.75, 24), woodMat);
+          bolt.rotation.x = Math.PI / 2;
+          bolt.position.set(0, -1.52, -0.18);
+          group.add(bolt);
+        }
         break;
       }
 
       case "notebook": {
         // Hardcover book
         const bookCoverGeo = new THREE.BoxGeometry(2.1, 2.9, 0.35);
-        const bookCover = new THREE.Mesh(bookCoverGeo, batikMaterial);
+        fitFabricUvs(bookCoverGeo);
+        const bookCover = new THREE.Mesh(bookCoverGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
         bookCover.castShadow = true;
         group.add(bookCover);
 
@@ -340,7 +444,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
           }
         }
         pouchGeo.computeVertexNormals();
-        const pouchMesh = new THREE.Mesh(pouchGeo, batikMaterial);
+        fitFabricUvs(pouchGeo);
+        const pouchMesh = new THREE.Mesh(pouchGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
         pouchMesh.castShadow = true;
         group.add(pouchMesh);
 
@@ -353,12 +458,16 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       }
 
       case "apron": {
-        const apronBody = new THREE.Mesh(new THREE.BoxGeometry(1.9, 2.1, 0.14, 12, 16, 2), batikMaterial);
+        const apronBodyGeometry = new THREE.BoxGeometry(1.9, 2.1, 0.14, 12, 16, 2);
+        fitFabricUvs(apronBodyGeometry);
+        const apronBody = new THREE.Mesh(apronBodyGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
         apronBody.position.y = -0.15;
         apronBody.castShadow = true;
         group.add(apronBody);
 
-        const apronBib = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.15, 0.14, 8, 10, 2), batikMaterial);
+        const apronBibGeometry = new THREE.BoxGeometry(1.05, 1.15, 0.14, 8, 10, 2);
+        fitFabricUvs(apronBibGeometry);
+        const apronBib = new THREE.Mesh(apronBibGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
         apronBib.position.y = 1.05;
         apronBib.castShadow = true;
         group.add(apronBib);
@@ -384,12 +493,16 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       }
 
       case "bucket-hat": {
-        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.82, 0.82, 40, 12), batikMaterial);
+        const crownGeometry = new THREE.CylinderGeometry(0.7, 0.82, 0.82, 40, 12);
+        fitFabricUvs(crownGeometry);
+        const crown = new THREE.Mesh(crownGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
         crown.position.y = 0.28;
         crown.castShadow = true;
         group.add(crown);
 
-        const brim = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 0.88, 0.12, 48, 2), batikMaterial);
+        const brimGeometry = new THREE.CylinderGeometry(1.1, 0.88, 0.12, 48, 2);
+        fitFabricUvs(brimGeometry);
+        const brim = new THREE.Mesh(brimGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
         brim.position.y = -0.2;
         brim.castShadow = true;
         group.add(brim);
@@ -411,7 +524,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
 
         // Runner fabric draping down edges
         const runnerGeo = new THREE.BoxGeometry(1.2, 0.04, 2.8, 16, 2, 16);
-        const runner = new THREE.Mesh(runnerGeo, batikMaterial);
+        fitFabricUvs(runnerGeo);
+        const runner = new THREE.Mesh(runnerGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
         runner.position.y = -0.18;
         runner.castShadow = true;
         group.add(runner);
@@ -419,9 +533,13 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       }
 
       case "placemats": {
-        for (const [index, x] of [-1.2, 0, 1.2].entries()) {
-          const mat = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.65, 0.07, 10, 16, 1), batikMaterial);
-          mat.position.set(x, index === 1 ? 0.08 : 0, 0.12 - index * 0.08);
+        for (const [index, x] of [-1.2, -0.4, 0.4, 1.2].entries()) {
+          const matGeometry = new THREE.BoxGeometry(1.05, 1.65, 0.07, 10, 16, 1);
+          fitFabricUvs(matGeometry);
+          const mat = new THREE.Mesh(matGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+          mat.position.set(x, index % 2 === 0 ? 0 : 0.08, 0.12 - index * 0.08);
+          mat.visible = designRef.current.size === "Set of 4" || index === 1 || index === 2;
+          mat.userData.placematIndex = index;
           mat.castShadow = true;
           mat.receiveShadow = true;
           group.add(mat);
@@ -438,11 +556,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
           tapestryPositions.setZ(i, Math.sin(x * 2.2) * 0.035 + Math.sin(y * 1.3) * 0.018);
         }
         tapestryGeometry.computeVertexNormals();
-        const tapestryMaterial = new THREE.MeshStandardMaterial({
-          map: (batikMaterial as THREE.MeshStandardMaterial).map,
-          side: THREE.DoubleSide,
-          roughness: 0.85,
-        });
+        fitFabricUvs(tapestryGeometry);
+        const tapestryMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
         const tapestry = new THREE.Mesh(tapestryGeometry, tapestryMaterial);
         tapestry.castShadow = true;
         group.add(tapestry);
@@ -457,7 +572,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       default: {
         // Fallback smooth display cylinder/box
         const fallbackGeo = new THREE.BoxGeometry(2.2, 2.2, 2.2);
-        const fallbackMesh = new THREE.Mesh(fallbackGeo, batikMaterial);
+        const fallbackMesh = new THREE.Mesh(fallbackGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
         group.add(fallbackMesh);
         break;
       }
@@ -471,6 +586,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     if (!container) return;
 
     let destroyed = false;
+    const fabricMaterials = fabricMaterialsRef.current;
     const width = container.clientWidth || 480;
     const height = container.clientHeight || 420;
 
@@ -495,7 +611,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       return;
     }
     setRenderError("");
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setAutoRotate(false);
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) setAutoRotate(false);
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     renderer.shadowMap.enabled = false;
@@ -505,6 +622,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     rendererRef.current = renderer;
 
     container.replaceChildren(renderer.domElement);
+    renderer.domElement.classList.add("batik-3d-scene");
 
     // 4. Lighting setup: warm studio studio lighting
     const ambientLight = new THREE.HemisphereLight(0xfff7ea, 0x796b64, 2.1);
@@ -526,6 +644,27 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     floorLight.position.set(0, -3, 2);
     scene.add(floorLight);
 
+    const shadowCanvas = document.createElement("canvas");
+    shadowCanvas.width = 256;
+    shadowCanvas.height = 256;
+    const shadowContext = shadowCanvas.getContext("2d");
+    if (shadowContext) {
+      const gradient = shadowContext.createRadialGradient(128, 128, 12, 128, 128, 128);
+      gradient.addColorStop(0, "rgba(46,35,48,0.24)");
+      gradient.addColorStop(0.5, "rgba(46,35,48,0.12)");
+      gradient.addColorStop(1, "rgba(46,35,48,0)");
+      shadowContext.fillStyle = gradient;
+      shadowContext.fillRect(0, 0, 256, 256);
+    }
+    const shadowTexture = new THREE.CanvasTexture(shadowCanvas);
+    const contactShadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.6, 4.6),
+      new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, depthWrite: false }),
+    );
+    contactShadow.rotation.x = -Math.PI / 2;
+    contactShadow.position.y = -1.87;
+    scene.add(contactShadow);
+
     // Gallery plinth and a soft pool of light ground the product in the studio.
     const plinth = new THREE.Mesh(
       new THREE.CylinderGeometry(1.55, 1.68, 0.22, 64),
@@ -533,6 +672,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     );
     plinth.position.y = -1.75;
     plinth.scale.set(1.25, 1, 1.25);
+    plinthRef.current = plinth;
     scene.add(plinth);
     const plinthTop = new THREE.Mesh(
       new THREE.CylinderGeometry(1.56, 1.56, 0.035, 64),
@@ -540,15 +680,18 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     );
     plinthTop.position.y = -1.62;
     plinthTop.scale.set(1.25, 1, 1.25);
+    plinthTopRef.current = plinthTop;
     scene.add(plinthTop);
 
     // 5. Generate Batik texture & product mesh
     setLoading(true);
     let revealProgress = 0;
-    renderBatikCanvas(design).then((canvas) => {
+    renderBatikCanvas(designRef.current).then((canvas) => {
       if (destroyed) return;
 
-    const texture = new THREE.CanvasTexture(canvas);
+      const currentDesign = designRef.current;
+
+      const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(1, 1);
@@ -558,29 +701,47 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
 
       const material = new THREE.MeshStandardMaterial({
         map: texture,
-        roughness: design.material === "Satin" ? 0.35 : design.material === "Linen blend" ? 0.85 : 0.65,
-        metalness: design.material === "Satin" ? 0.25 : 0.05,
+        roughness: currentDesign.material === "Satin" ? 0.35 : currentDesign.material === "Linen blend" ? 0.85 : 0.65,
+        metalness: currentDesign.material === "Satin" ? 0.12 : 0.02,
         name: "batik-print",
       });
 
-      const model = createProductMesh(design.product, material);
-      const bounds = new THREE.Box3().setFromObject(model);
+      const productGeometry = createProductMesh(currentDesign.product, material);
+      const bounds = new THREE.Box3().setFromObject(productGeometry);
       const center = bounds.getCenter(new THREE.Vector3());
       const size = bounds.getSize(new THREE.Vector3());
-      model.position.sub(center);
+      const productFloor = bounds.min.y - center.y;
+      productGeometry.position.sub(center);
+      productCenterYRef.current = center.y;
+      const scale = productSizeScale(currentDesign);
+      productGeometry.scale.set(scale.x, scale.y, scale.z);
+      productGeometry.position.y += (scale.y - 1) * size.y / 2;
+      const model = new THREE.Group();
+      model.add(productGeometry);
       modelSizeRef.current = size;
-      const plinthRadius = Math.max(1.05, size.x * 0.66);
+      productGeometryRef.current = productGeometry;
+      const plinthRadius = Math.max(1.05, Math.hypot(size.x * scale.x, size.z * scale.z) * 0.34);
       plinth.scale.set(plinthRadius / 1.55, 1, plinthRadius / 1.55);
       plinthTop.scale.set(plinthRadius / 1.56, 1, plinthRadius / 1.56);
-      plinth.position.y = -size.y / 2 - 0.12;
-      plinthTop.position.y = -size.y / 2 - 0.0125;
-      cameraDistanceRef.current = fittedCameraDistance(camera, size);
-      camera.position.set(0, 0, cameraDistanceRef.current / zoomRef.current);
-      camera.lookAt(0, 0, 0);
+      plinth.position.y = productFloor - 0.1275;
+      plinthTop.position.y = productFloor - 0.0175;
+      contactShadow.position.y = productFloor - 0.24;
       modelGroupRef.current = model;
+      fabricMaterials.add(material);
+      model.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) return;
+        for (const candidate of Array.isArray(child.material) ? child.material : [child.material]) {
+          const meshMaterial = candidate as THREE.MeshStandardMaterial;
+          if (meshMaterial.map === texture) fabricMaterials.add(meshMaterial);
+        }
+      });
       scene.add(model);
-      model.scale.setScalar(0.86);
       model.rotation.y = -0.22;
+      targetRotationRef.current = { x: model.rotation.x, y: model.rotation.y };
+      model.scale.setScalar(1);
+      fitCameraRef.current?.();
+      model.scale.setScalar(prefersReducedMotion ? 1 : 0.001);
+      if (prefersReducedMotion) revealProgress = 1;
       setLoading(false);
     });
 
@@ -600,6 +761,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       const dy = e.clientY - prevMouseRef.current.y;
       modelGroupRef.current.rotation.y += dx * 0.012;
       modelGroupRef.current.rotation.x = Math.max(-0.6, Math.min(0.6, modelGroupRef.current.rotation.x + dy * 0.008));
+      targetRotationRef.current = { x: modelGroupRef.current.rotation.x, y: modelGroupRef.current.rotation.y };
+      setAutoRotate(false);
       prevMouseRef.current = { x: e.clientX, y: e.clientY };
     };
 
@@ -618,8 +781,9 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       const direction = directions[e.key];
       if (direction) {
         e.preventDefault();
-        modelGroupRef.current.rotation.y += direction[0];
-        modelGroupRef.current.rotation.x = Math.max(-0.6, Math.min(0.6, modelGroupRef.current.rotation.x + direction[1]));
+        targetRotationRef.current.y = (autoRotateRef.current ? modelGroupRef.current.rotation.y : targetRotationRef.current.y) + direction[0];
+        targetRotationRef.current.x = Math.max(-0.6, Math.min(0.6, targetRotationRef.current.x + direction[1]));
+        setAutoRotate(false);
       }
     };
 
@@ -635,17 +799,23 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     domEl.addEventListener("keydown", onKeyDown);
 
     // 7. Render Loop
+    const animationClock = new THREE.Clock();
     const animate = () => {
       animFrameRef.current = requestAnimationFrame(animate);
+      const delta = animationClock.getDelta();
       if (modelGroupRef.current && autoRotateRef.current && !isDraggingRef.current) {
         modelGroupRef.current.rotation.y += 0.008;
       }
       if (modelGroupRef.current) {
+        if (!autoRotateRef.current && !isDraggingRef.current) {
+          modelGroupRef.current.rotation.x = THREE.MathUtils.damp(modelGroupRef.current.rotation.x, targetRotationRef.current.x, 10, delta);
+          modelGroupRef.current.rotation.y = THREE.MathUtils.damp(modelGroupRef.current.rotation.y, targetRotationRef.current.y, 10, delta);
+        }
         const elapsed = performance.now() * 0.001;
-        revealProgress = Math.min(1, revealProgress + 0.025);
-        const reveal = 0.86 + revealProgress * 0.14;
-        modelGroupRef.current.scale.setScalar(reveal);
-        modelGroupRef.current.position.y = Math.sin(elapsed * 1.15) * 0.04;
+        revealProgress = Math.min(1, revealProgress + 0.018);
+        const reveal = 1 - (1 - revealProgress) ** 3;
+        modelGroupRef.current.scale.setScalar(Math.max(0.001, reveal));
+        modelGroupRef.current.position.y = prefersReducedMotion ? 0 : Math.sin(elapsed * 1.15) * 0.015;
       }
       renderer.render(scene, camera);
     };
@@ -658,14 +828,27 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       if (newW > 0 && newH > 0) {
         camera.aspect = newW / newH;
         camera.updateProjectionMatrix();
-        if (modelSizeRef.current) {
-          cameraDistanceRef.current = fittedCameraDistance(camera, modelSizeRef.current);
-          camera.position.set(0, 0, cameraDistanceRef.current / zoomRef.current);
-          camera.lookAt(0, 0, 0);
-        }
         renderer.setSize(newW, newH);
+        fitCameraRef.current?.();
       }
     });
+    fitCameraRef.current = () => {
+      if (!modelGroupRef.current || !modelSizeRef.current || !container.clientWidth || !container.clientHeight) return;
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      const bounds = new THREE.Box3().setFromObject(modelGroupRef.current);
+      const centre = bounds.getCenter(new THREE.Vector3());
+      const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+      const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+      const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
+      cameraDistanceRef.current = Math.max(
+        sphere.radius / Math.sin(verticalFov / 2),
+        sphere.radius / Math.sin(horizontalFov / 2),
+      ) * 1.3;
+      cameraTargetRef.current.copy(centre);
+      camera.position.copy(centre).addScaledVector(cameraDirectionRef.current, cameraDistanceRef.current / zoomRef.current);
+      camera.lookAt(centre);
+    };
     resizeObserver.observe(container);
 
     // Cleanup
@@ -673,6 +856,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       destroyed = true;
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       resizeObserver.disconnect();
+      fitCameraRef.current = null;
       domEl.removeEventListener("pointerdown", onPointerDown);
       domEl.removeEventListener("pointermove", onPointerMove);
       domEl.removeEventListener("pointerup", stopPointerDrag);
@@ -691,14 +875,22 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         geometries.forEach((geometry) => geometry.dispose());
         materials.forEach((material) => material.dispose());
       }
+      fabricMaterials.clear();
       textureRef.current?.dispose();
       textureRef.current = null;
       plinth.geometry.dispose();
       (plinth.material as THREE.Material).dispose();
       plinthTop.geometry.dispose();
       (plinthTop.material as THREE.Material).dispose();
+      contactShadow.geometry.dispose();
+      (contactShadow.material as THREE.Material).dispose();
+      shadowTexture.dispose();
       modelGroupRef.current = null;
+      productGeometryRef.current = null;
+      productCenterYRef.current = 0;
       modelSizeRef.current = null;
+      plinthRef.current = null;
+      plinthTopRef.current = null;
       sceneRef.current = null;
       rendererRef.current = null;
       cameraRef.current = null;
@@ -709,35 +901,55 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [design.product]);
 
+  useEffect(() => {
+    const geometry = productGeometryRef.current;
+    const size = modelSizeRef.current;
+    if (!geometry || !size) return;
+    const scale = productSizeScale({ product: design.product, size: design.size });
+    geometry.scale.set(scale.x, scale.y, scale.z);
+    geometry.position.y = -productCenterYRef.current + (scale.y - 1) * size.y / 2;
+    geometry.traverse((child) => {
+      if (typeof child.userData.placematIndex === "number") child.visible = design.size === "Set of 4" || child.userData.placematIndex === 1 || child.userData.placematIndex === 2;
+    });
+    const plinthRadius = Math.max(1.05, Math.hypot(size.x * scale.x, size.z * scale.z) * 0.34);
+    if (plinthRef.current) plinthRef.current.scale.set(plinthRadius / 1.55, 1, plinthRadius / 1.55);
+    if (plinthTopRef.current) plinthTopRef.current.scale.set(plinthRadius / 1.56, 1, plinthRadius / 1.56);
+    fitCameraRef.current?.();
+  }, [design.product, design.size]);
+
   // Update the print without rebuilding the model; only the listed design fields affect its texture.
   useEffect(() => {
+    if (!hasMountedTextureEffectRef.current) {
+      hasMountedTextureEffectRef.current = true;
+      return;
+    }
     let active = true;
-    renderBatikCanvas(design).then((canvas) => {
-      if (!active || !modelGroupRef.current) return;
-      const previousTexture = textureRef.current;
-      const newTexture = new THREE.CanvasTexture(canvas);
-      newTexture.wrapS = THREE.RepeatWrapping;
-      newTexture.wrapT = THREE.RepeatWrapping;
-      newTexture.repeat.set(1, 1);
-      newTexture.colorSpace = THREE.SRGBColorSpace;
-      newTexture.anisotropy = rendererRef.current?.capabilities.getMaxAnisotropy() ?? 1;
-      textureRef.current = newTexture;
+    const updateTimeout = window.setTimeout(() => {
+      renderBatikCanvas(design).then((canvas) => {
+        if (!active || !modelGroupRef.current) return;
+        const previousTexture = textureRef.current;
+        const newTexture = new THREE.CanvasTexture(canvas);
+        newTexture.wrapS = THREE.RepeatWrapping;
+        newTexture.wrapT = THREE.RepeatWrapping;
+        newTexture.repeat.set(1, 1);
+        newTexture.colorSpace = THREE.SRGBColorSpace;
+        newTexture.anisotropy = rendererRef.current?.capabilities.getMaxAnisotropy() ?? 1;
+        textureRef.current = newTexture;
 
-      modelGroupRef.current.traverse((child) => {
-        if (child instanceof THREE.Mesh && child.material) {
-          const mat = child.material as THREE.MeshStandardMaterial;
-          if (previousTexture && mat.map === previousTexture) {
-            mat.map = newTexture;
-            mat.roughness = design.material === "Satin" ? 0.35 : design.material === "Linen blend" ? 0.85 : 0.65;
-            mat.metalness = design.material === "Satin" ? 0.25 : 0.05;
-            mat.needsUpdate = true;
+        fabricMaterialsRef.current.forEach((material) => {
+          if (previousTexture && material.map === previousTexture) {
+            material.map = newTexture;
+            material.roughness = design.material === "Satin" ? 0.35 : design.material === "Linen blend" ? 0.85 : 0.65;
+            material.metalness = design.material === "Satin" ? 0.12 : 0.02;
+            material.needsUpdate = true;
           }
-        }
+        });
+        previousTexture?.dispose();
       });
-      previousTexture?.dispose();
-    });
+    }, 50);
     return () => {
       active = false;
+      window.clearTimeout(updateTimeout);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -772,11 +984,14 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
   ]);
 
   useEffect(() => {
-    if (cameraRef.current) cameraRef.current.position.z = cameraDistanceRef.current / zoom;
+    if (cameraRef.current) {
+      cameraRef.current.position.copy(cameraTargetRef.current).addScaledVector(cameraDirectionRef.current, cameraDistanceRef.current / zoom);
+      cameraRef.current.lookAt(cameraTargetRef.current);
+    }
   }, [zoom]);
 
   return (
-    <div className={`relative w-full h-full select-none cursor-grab active:cursor-grabbing ${className}`}>
+    <div ref={viewerRef} className={`batik-3d-viewer relative w-full h-full select-none cursor-grab active:cursor-grabbing ${className}`}>
       <div ref={mountRef} className="w-full h-full min-h-[340px] touch-none" aria-label={`${design.name}, interactive 3D ${design.product} preview. Drag to rotate or focus and use the arrow keys.`} />
       {renderError && <div className="absolute inset-0 grid place-items-center bg-[#f4eee5] p-5" role="status"><div className="max-w-xs text-center"><p className="text-xs font-semibold text-[#514267]">{renderError}</p><img className="mt-3 max-h-56 w-full object-contain" src={designImage(design)} alt={`${design.name} 2D product preview`} /></div></div>}
 
@@ -784,22 +999,50 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
         <button
           type="button"
-          onClick={() => setAutoRotate((prev) => !prev)}
+          onClick={() => turnModel(-Math.PI / 4)}
+          className="grid size-8 place-items-center rounded-full border border-white/70 bg-white/70 text-[#29243a] shadow-md backdrop-blur-md transition-colors hover:bg-white"
+          title="Turn product left 45 degrees"
+          aria-label="Turn product left 45 degrees"
+        >
+          <RotateCcw size={15} />
+        </button>
+        <button
+          type="button"
+          onClick={() => turnModel(Math.PI / 4)}
+          className="grid size-8 place-items-center rounded-full border border-white/70 bg-white/70 text-[#29243a] shadow-md backdrop-blur-md transition-colors hover:bg-white"
+          title="Turn product right 45 degrees"
+          aria-label="Turn product right 45 degrees"
+        >
+          <RotateCw size={15} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setAutoRotate((prev) => {
+            if (prev && modelGroupRef.current) {
+              targetRotationRef.current = {
+                x: modelGroupRef.current.rotation.x,
+                y: modelGroupRef.current.rotation.y,
+              };
+            }
+            return !prev;
+          })}
           className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
             autoRotate
               ? "bg-[#29243a] text-[#fff5e8] border-white/30 shadow-lg backdrop-blur-md"
               : "bg-white/70 text-[#29243a] border-white/70 hover:bg-white shadow-md backdrop-blur-md"
           }`}
-          title="Toggle continuous rotation"
+          title={autoRotate ? "Pause product spin" : "Play product spin"}
+          aria-label={autoRotate ? "Pause product spin" : "Play product spin"}
           aria-pressed={autoRotate}
         >
-          {autoRotate ? "↻ Spinning" : "⏸ Paused"}
+          {autoRotate ? "↻ Pause spin" : "↻ Play spin"}
         </button>
         <button
           type="button"
           onClick={() => {
             if (modelGroupRef.current) {
-              modelGroupRef.current.rotation.set(0, 0, 0);
+              targetRotationRef.current = { x: 0, y: 0 };
+              setAutoRotate(false);
             }
           }}
           className="px-3 py-1.5 text-xs font-semibold rounded-full bg-white/70 text-[#29243a] border border-white/70 hover:bg-white transition-colors shadow-md backdrop-blur-md"
@@ -808,7 +1051,18 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         >
           Reset view
         </button>
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          className="grid size-8 place-items-center rounded-full border border-white/70 bg-white/70 text-[#29243a] shadow-md backdrop-blur-md transition-colors hover:bg-white"
+          title={fullscreen ? "Exit full-screen view" : "Inspect in full screen"}
+          aria-label={fullscreen ? "Exit full-screen 3D view" : "Inspect 3D model in full screen"}
+        >
+          {fullscreen ? <Minimize2 size={15} /> : <Expand size={15} />}
+        </button>
       </div>
+
+      {fullscreenError && <p className="absolute bottom-14 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[#282338]/85 px-3 py-2 text-center text-xs text-[#fff5e8]" role="status">{fullscreenError}</p>}
 
       {loading && (
         <div className="absolute inset-0 grid place-items-center bg-[#f4eee5]/70 backdrop-blur-xs text-xs font-semibold text-[#514267]">

@@ -42,7 +42,7 @@ export const PRODUCTS: StudioProduct[] = [
 ];
 export const motifShapeSchema = z.enum(["rosette", "diamond", "leaf", "wave", "star"]);
 export const motifCenterSchema = z.enum(["circle", "diamond", "dot", "none"]);
-export const motifLayerSchema = z.object({ id: z.string().uuid(), motif: z.enum(["kawung", "parang", "hibiscus", "bamboo", "mega", "ceplok", "leaf", "star", "custom"]), x: z.number().min(-60).max(120), y: z.number().min(-60).max(120), scale: z.number().min(0.15).max(1), rotation: z.number().min(0).max(360), opacity: z.number().min(0.1).max(1), colour: z.enum(["ink", "detail"]) });
+export const motifLayerSchema = z.object({ id: z.string().uuid(), motif: z.enum(["kawung", "parang", "hibiscus", "bamboo", "mega", "ceplok", "leaf", "star", "custom"]), x: z.number().min(-60).max(120), y: z.number().min(-60).max(120), scale: z.number().min(0.15).max(1), rotation: z.number().min(0).max(360), opacity: z.number().min(0.1).max(1), colour: z.enum(["ink", "detail", "accent"]) });
 export const designSchema = z.object({
   name: z.string().max(60), product: z.string(), size: z.string(), material: z.string(),
   motif: z.enum(["kawung", "parang", "hibiscus", "bamboo", "mega", "ceplok", "leaf", "star", "custom"]),
@@ -65,6 +65,26 @@ export const ORDER_STAGES = ["Order confirmed", "Printing your design", "Quality
 export const PAYMENTS = ["FPX online banking", "Touch 'n Go eWallet", "Card"] as const;
 export const money = (amount: number) => `RM${amount.toFixed(2)}`;
 export const productFor = (d: Design) => PRODUCTS.find((p) => p.id === d.product) ?? PRODUCTS[0];
+export function productSizeScale(d: Pick<Design, "product" | "size">) {
+  const product = PRODUCTS.find((item) => item.id === d.product) ?? PRODUCTS[0];
+  const sizeIndex = Math.max(0, product.sizes.indexOf(d.size));
+  if (product.category === "Wear" && product.sizes === wearSizes) {
+    const fit = 0.92 + sizeIndex * 0.04;
+    return { x: fit, y: 0.96 + sizeIndex * 0.016, z: fit };
+  }
+  switch (product.id) {
+    case "tote": return d.size === "Large" ? { x: 1.16, y: 1.1, z: 1.12 } : { x: 1, y: 1, z: 1 };
+    case "scarf": return sizeIndex === 0 ? { x: 1, y: 0.72, z: 0.72 } : { x: 1.5, y: 0.9, z: 0.9 };
+    case "pouch": return d.size === "Large" ? { x: 1.18, y: 1.12, z: 1.08 } : { x: 1, y: 1, z: 1 };
+    case "notebook": return d.size === "A4" ? { x: 1.25, y: 1.2, z: 1.08 } : { x: 1, y: 1, z: 1 };
+    case "cushion": return d.size.startsWith("60") ? { x: 1.28, y: 1.28, z: 1.15 } : { x: 1, y: 1, z: 1 };
+    case "runner": return sizeIndex === 1 ? { x: 1, y: 1, z: 1.42 } : { x: 1, y: 1, z: 1 };
+    case "fabric": return { x: 1, y: 1 + sizeIndex * 0.22, z: 1 };
+    case "placemats": return d.size === "Set of 4" ? { x: 1.18, y: 1, z: 1 } : { x: 1, y: 1, z: 1 };
+    case "tapestry": return sizeIndex === 1 ? { x: 1.16, y: 1.32, z: 1 } : { x: 1, y: 1, z: 1 };
+    default: return { x: 1, y: 1, z: 1 };
+  }
+}
 export function unitPrice(d: Design) {
   const p = productFor(d);
   const sizeIndex = Math.max(0, p.sizes.indexOf(d.size));
