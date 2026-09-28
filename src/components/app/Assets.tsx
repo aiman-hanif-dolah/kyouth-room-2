@@ -141,7 +141,7 @@ export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset;
   };
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-2.5" data-testid="asset-card">
-      <Thumb a={a} url={url} onClick={a.kind === "image" && url ? openPreview : undefined} />
+      <Thumb a={a} url={url} {...(a.kind === "image" && url ? { onClick: openPreview } : {})} />
       <div className="flex items-center gap-1.5 text-[11px]">
         <span className="min-w-0 flex-1 truncate text-foreground" title={a.file_name}>{a.file_name}</span>
         <span className="shrink-0 text-muted-foreground">{fmtSize(a.size_bytes)}</span>
