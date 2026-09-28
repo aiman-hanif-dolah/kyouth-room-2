@@ -5,7 +5,6 @@ import { useProject, memberName } from "@/lib/project/store";
 import { buildSlides } from "@/components/app/presentationSlides";
 import { useAssets } from "@/lib/project/assets";
 import { Badge, Button, Card, PageHeader, NumField } from "@/components/app/kit";
-import { SectionTaskPanel } from "@/components/app/SectionTask";
 import { cn } from "@/lib/utils";
 import { move, RowControls } from "@/components/app/kit";
 
@@ -48,7 +47,6 @@ function PresentationPage() {
             <Button variant="primary" onClick={() => { setStart(0); setPresenting(true); }}><Play className="size-4" /> Present</Button>
           </div>
         </PageHeader>
-        <SectionTaskPanel sections={["s7", "s8"]} />
 
         <Card title="Outline and timing" subtitle="Required order: company, business plan, product demo, marketing, demographics, AI prompt engineering (main highlight)." action={<Badge tone={total === 40 ? "success" : "danger"}>{total} / 40 min</Badge>}>
           <div className="mb-4 flex h-3 overflow-hidden rounded-full bg-elevated">
