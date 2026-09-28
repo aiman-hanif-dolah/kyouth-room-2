@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Download, ExternalLink, FileText, RefreshCw, Trash2, UploadCloud, X } from "lucide-react";
-import { ACCEPT, IMAGE_ACCEPT, MAX_FILE_MB, SLOT_LABEL, fileExt, fmtSize, useAssets, type Asset } from "@/lib/project/assets";
+import { ACCEPT, IMAGE_ACCEPT, MAX_FILE_MB, SLOT_LABEL, fileExt, fmtSize, isImageName, useAssets, type Asset } from "@/lib/project/assets";
 import { SECTIONS } from "@/lib/project/sections";
 import type { SectionId } from "@/lib/project/types";
 import { Badge, Button } from "./kit";
@@ -32,9 +32,20 @@ export function Dropzone({ slot, section, imagesOnly, label }: { slot: string; s
   const { upload, jobs, dismissJob, signedIn } = useAssets();
   const ref = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
+  const [rejected, setRejected] = useState<string[]>([]);
   if (!signedIn) return <SignInToUpload />;
   const mine = jobs.filter((j) => j.slot === slot);
-  const send = (list: FileList | null) => list && list.length && upload(Array.from(list), { slot, section });
+  const send = (list: FileList | null) => {
+    if (!list || !list.length) return;
+    let files = Array.from(list);
+    if (imagesOnly) {
+      // Drag-and-drop bypasses the input's accept attribute, so enforce image-only here too.
+      const bad = files.filter((f) => !isImageName(f.name)).map((f) => f.name);
+      files = files.filter((f) => isImageName(f.name));
+      setRejected(bad);
+    } else setRejected([]);
+    if (files.length) upload(files, { slot, section });
+  };
   return (
     <div>
       <div
@@ -52,6 +63,11 @@ export function Dropzone({ slot, section, imagesOnly, label }: { slot: string; s
         <span className="text-foreground">{label ?? "Drop files here or click to choose"}</span>
         <span>{imagesOnly ? "PNG, JPG, WEBP, GIF, SVG" : "Images, documents, video, audio"} · select as many as you need · up to {MAX_FILE_MB} MB each</span>
       </div>
+      {rejected.length > 0 && (
+        <p className="mt-1.5 text-[11px] text-destructive">
+          Only images go here: {rejected.join(", ")} {rejected.length === 1 ? "was" : "were"} skipped. Use the Project assets library for video, audio and documents.
+        </p>
+      )}
       <input ref={ref} type="file" multiple accept={imagesOnly ? IMAGE_ACCEPT : ACCEPT} className="hidden" data-testid={`upload-${slot}`} onChange={(e) => { send(e.target.files); e.target.value = ""; }} />
       {mine.length > 0 && (
         <ul className="mt-2 space-y-1.5">

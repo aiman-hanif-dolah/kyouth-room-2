@@ -54,6 +54,8 @@ const MIME_OK: Record<string, string[]> = {
 const kindOf = (e: string): Asset["kind"] => (IMAGE_EXT[e] ? "image" : VIDEO_EXT[e] ? "video" : AUDIO_EXT[e] ? "audio" : "document");
 export const ACCEPT = [...Object.keys(IMAGE_EXT), ...Object.keys(DOC_EXT), ...Object.keys(VIDEO_EXT), ...Object.keys(AUDIO_EXT)].map((e) => "." + e).join(",");
 export const IMAGE_ACCEPT = Object.keys(IMAGE_EXT).map((e) => "." + e).join(",");
+/** True when the filename has an image extension we accept. */
+export const isImageName = (name: string) => !!IMAGE_EXT[name.split(".").pop()?.toLowerCase() ?? ""];
 
 export const SLOT_SECTION: Record<string, SectionId> = { "company.logo": "s1", "company.moodboard": "s1", "product.mockups": "s4", "marketing.visuals": "s6" };
 export const slotSection = (slot: string, fallback: SectionId = "s1"): SectionId => SLOT_SECTION[slot] ?? (slot.startsWith("marketing.") ? "s6" : fallback);
