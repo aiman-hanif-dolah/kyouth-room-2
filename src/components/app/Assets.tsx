@@ -203,7 +203,7 @@ export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section 
   };
   return (
     <div>
-      <ImageSlot item={{ ...item, url: resolveSlotUrl(item.url, urls) }} onChange={onChange} onDelete={onDelete} aspect={aspect} />
+      <ImageSlot item={{ ...item, url: resolveSlotUrl(item.url, urls) }} onChange={onChange} {...(onDelete ? { onDelete } : {})} aspect={aspect} />
       {signedIn ? (
         <div className="mt-2">
           <Button size="sm" variant="brand" disabled={busy} onClick={() => ref.current?.click()}>
