@@ -46,6 +46,7 @@ const Bullets = ({ items }: { items: string[] }) => (items.filter((x) => x.trim(
 
 /** Pure selector: every slide reads from project state. Nothing is copied. */
 export function buildSlides(s: ProjectState, interactive = true, media: SlideMedia = { assets: [], urls: {} }): Slide[] {
+  const resolveUrl = (u: string, urls: Record<string, string>): string => (u.startsWith("asset:") ? urls[u.slice(6)] ?? "" : u);
   const deck = media.assets.filter((a) => a.kind === "image" && a.in_presentation && media.urls[a.id]);
   const toPic = (a: Asset): Pic => ({ id: a.id, url: media.urls[a.id], caption: a.caption, alt: a.alt_text, w: a.width, h: a.height });
   const pics = (pred: (a: Asset) => boolean) => deck.filter(pred).map(toPic);
@@ -109,7 +110,7 @@ export function buildSlides(s: ProjectState, interactive = true, media: SlideMed
     <Grid cols={4}>
       {(["instagram", "tiktok", "facebook", "linkedin"] as const).map((pl) => {
         const list = m.samples.filter((x) => x.platform === pl);
-        return <Box key={pl} title={`${pl} (${list.length})`}>{list.slice(0, 3).map((x) => <div key={x.id} className="mb-3 border-b border-border pb-2 text-sm last:border-0">{(() => { const a = sampleImg(x.id); const src = a ? media.urls[a.id] : x.imageUrl; return src ? <img src={src} alt={a?.alt_text || x.title} className="mb-1 max-h-40 w-full rounded object-contain" /> : null; })()}<p className="text-foreground">{x.title}</p><p className="line-clamp-3">{x.body}</p></div>)}</Box>;
+        return <Box key={pl} title={`${pl} (${list.length})`}>{list.slice(0, 3).map((x) => <div key={x.id} className="mb-3 border-b border-border pb-2 text-sm last:border-0">{(() => { const a = sampleImg(x.id); const src = a ? media.urls[a.id] : resolveUrl(x.imageUrl, media.urls); return src ? <img src={src} alt={a?.alt_text || x.title} className="mb-1 max-h-40 w-full rounded object-contain" /> : null; })()}<p className="text-foreground">{x.title}</p><p className="line-clamp-3">{x.body}</p></div>)}</Box>;
       })}
     </Grid>
   ));
