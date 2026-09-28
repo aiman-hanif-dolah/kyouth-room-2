@@ -202,12 +202,17 @@ export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section 
   };
   return (
     <div>
-      <ImageSlot item={{ ...item, url: resolveSlotUrl(item.url, urls) }} onChange={onChange} {...(onDelete ? { onDelete } : {})} {...(aspect ? { aspect } : {})} />
+      <ImageSlot item={{ ...item, url: resolveSlotUrl(item.url, urls) }} onChange={onChange} {...(aspect ? { aspect } : {})} />
       {canEdit ? (
-        <div className="mt-2">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <Button size="sm" variant="brand" disabled={busy} onClick={() => ref.current?.click()}>
             <UploadCloud className="size-3.5" /> {busy ? "Uploading…" : item.url ? "Upload a different image" : "Upload image"}
           </Button>
+          {onDelete && (
+            <Button size="sm" variant="danger" aria-label="Delete visual" onClick={onDelete}>
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
           <input ref={ref} type="file" multiple accept={IMAGE_ACCEPT} className="hidden" data-testid={`slot-upload-${slot}`} onChange={(e) => { send(e.target.files); e.target.value = ""; }} />
           {rejected.length > 0 && <p className="mt-1 text-[11px] text-destructive">Only images go here: {rejected.join(", ")} skipped.</p>}
         </div>
