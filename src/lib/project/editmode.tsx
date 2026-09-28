@@ -6,6 +6,7 @@ interface Ctx {
   ready: boolean;
   unlock: (passcode: string) => Promise<boolean>;
   lock: () => Promise<void>;
+  expire: () => void;
 }
 
 const g = globalThis as unknown as { __tvEditCtx?: React.Context<Ctx | null> };
@@ -70,7 +71,17 @@ export function EditModeProvider({ children }: { children: ReactNode }) {
     setCanEdit(false);
   }, []);
 
-  const value = useMemo(() => ({ canEdit, ready, unlock, lock }), [canEdit, ready, unlock, lock]);
+  // Server said the unlock is gone (cookie missing/expired): drop to Published locally.
+  const expire = useCallback(() => {
+    try {
+      window.localStorage.removeItem(LS_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+    setCanEdit(false);
+  }, []);
+
+  const value = useMemo(() => ({ canEdit, ready, unlock, lock, expire }), [canEdit, ready, unlock, lock, expire]);
   return <EditContext.Provider value={value}>{children}</EditContext.Provider>;
 }
 

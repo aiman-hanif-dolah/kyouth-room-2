@@ -40,7 +40,7 @@ function normalize(raw: unknown): ProjectState | null {
 }
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
-  const { canEdit } = useEditMode();
+  const { canEdit, expire } = useEditMode();
   const [state, setState] = useState<ProjectState>(() => createSeed());
   const [hydrated, setHydrated] = useState(false);
   const [sync, setSync] = useState<SyncStatus>("local");
@@ -138,12 +138,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setSync("synced");
         setSyncError("");
       } catch (e) {
+        const msg = (e as Error).message ?? "";
+        if (msg.includes("Edit mode is locked")) {
+          expire();
+          setSync("error");
+          setSyncError("Edit mode expired. Enter the passcode again to keep saving.");
+          return;
+        }
         setSync("error");
-        setSyncError((e as Error).message);
+        setSyncError(msg);
       }
     }, 700);
     return () => clearTimeout(t);
-  }, [state, canEdit]);
+  }, [state, canEdit, expire]);
 
   const update = useCallback((fn: (d: ProjectState) => void, section?: SectionId) => {
     if (!canEditRef.current) return; // Published mode is read-only.
