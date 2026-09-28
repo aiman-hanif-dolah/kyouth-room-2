@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Maximize, Pause, Play, Printer, RotateCcw, X, StickyNote } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize, Pause, Play, Printer, RotateCcw, X, StickyNote, ArrowLeft } from "lucide-react";
 import { useProject, memberName } from "@/lib/project/store";
 import { buildSlides } from "@/components/app/presentationSlides";
 import { useAssets } from "@/lib/project/assets";
@@ -32,11 +32,7 @@ function PresentationPage() {
   const [start, setStart] = useState(0);
   const [printing, setPrinting] = useState(false);
 
-  useEffect(() => {
-    if (!printing) return;
-    const t = setTimeout(() => { window.print(); setPrinting(false); }, 200);
-    return () => clearTimeout(t);
-  }, [printing]);
+  // print view stays open until closed by user
 
   return (
     <>
@@ -92,13 +88,45 @@ function PresentationPage() {
       </div>
 
       {printing && (
-        <div className="fixed inset-0 z-[100] overflow-auto bg-background p-6">
-          {buildSlides(state, false, media).map((s, i) => (
-            <section key={i} className="print-slide deck-stage mb-6" data-tone={s.tone}>
-              <p className="deck-header">{i + 1} / 15</p><h2 className="deck-title">{s.title}</h2>
-              {s.body}
-            </section>
-          ))}
+        <div className="fixed inset-0 z-[100] flex flex-col bg-background">
+          <div className="no-print flex items-center justify-between border-b border-border bg-card px-6 py-3">
+            <div className="flex items-center gap-3">
+              <Button size="sm" variant="ghost" onClick={() => setPrinting(false)}>
+                <ArrowLeft className="size-4" /> Back to outline
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                A4 Pamphlet View · 15 slides formatted for print and presentation
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="primary" size="sm" onClick={() => window.print()}>
+                <Printer className="size-4" /> Print / Save PDF
+              </Button>
+              <Button size="sm" variant="ghost" aria-label="Close print view" onClick={() => setPrinting(false)}>
+                <X className="size-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="print-view-container flex-1 overflow-auto bg-neutral-900/60 p-4 md:p-8">
+            <div className="mx-auto max-w-[1100px] space-y-6">
+              {buildSlides(state, false, media).map((s, i) => (
+                <section
+                  key={i}
+                  className="print-slide deck-stage rounded-xl border border-border/80 shadow-2xl"
+                  data-tone={s.tone}
+                >
+                  <p className="deck-header">
+                    <span>{state.company.name} · {s.title}</span>
+                    <span>Slide {i + 1} / 15</span>
+                  </p>
+                  <div className="flex-1">
+                    {s.body}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

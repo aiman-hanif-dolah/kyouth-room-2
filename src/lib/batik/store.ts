@@ -50,7 +50,7 @@ export function useBatikStudio() {
     const p = PRODUCTS.find((x) => x.id === productId);
     if (!p) return;
     change({ product: p.id, size: p.sizes.includes(design.size) ? design.size : p.sizes[0], material: p.materials.includes(design.material) ? design.material : p.materials[0] });
-    setMode("product"); setTab("studio");
+    setTab("studio");
   };
   const palette = (index: number) => {
     const p = PALETTES[index]; if (!p) return;

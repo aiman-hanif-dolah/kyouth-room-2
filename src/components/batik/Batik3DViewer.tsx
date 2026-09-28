@@ -1,21 +1,24 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Design } from "@/lib/batik/catalog";
-import { designSvg } from "@/lib/batik/design";
+import { designImage, designSvg } from "@/lib/batik/design";
 
 interface Batik3DViewerProps {
   design: Design;
+  zoom?: number;
   className?: string;
 }
 
-export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
+export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewerProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [autoRotate, setAutoRotate] = useState(true);
+  const [renderError, setRenderError] = useState("");
 
   // Keep references to Three.js objects
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const modelGroupRef = useRef<THREE.Group | null>(null);
   const textureRef = useRef<THREE.CanvasTexture | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -24,7 +27,7 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
   const autoRotateRef = useRef(autoRotate);
   autoRotateRef.current = autoRotate;
 
-  // Generate batik pattern into a high-res HTMLCanvasElement for Three texture
+  // Compose the full design onto a high-res canvas for the 3D product texture.
   const renderBatikCanvas = (d: Design): Promise<HTMLCanvasElement> => {
     return new Promise((resolve) => {
       const svgString = designSvg(d, "pattern");
@@ -40,7 +43,44 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
         if (ctx) {
           ctx.fillStyle = d.background;
           ctx.fillRect(0, 0, 1024, 1024);
-          ctx.drawImage(img, 0, 0, 1024, 1024);
+          if (d.placement === "all") {
+            ctx.drawImage(img, 0, 0, 1024, 1024);
+          } else {
+            ctx.save();
+            if (d.placement === "panel") {
+              ctx.beginPath();
+              ctx.roundRect(230, 180, 564, 640, 12);
+            } else {
+              ctx.beginPath();
+              ctx.rect(0, 748, 1024, 155);
+            }
+            ctx.clip();
+            ctx.drawImage(img, 0, 0, 1024, 1024);
+            ctx.restore();
+          }
+          if (d.border) {
+            ctx.strokeStyle = d.detail;
+            ctx.lineWidth = 10;
+            for (const y of [768, 802]) {
+              ctx.beginPath();
+              ctx.moveTo(0, y);
+              ctx.lineTo(1024, y);
+              ctx.stroke();
+            }
+          }
+          if (d.monogram) {
+            const fontSize = d.textSize * 1024 / 600;
+            ctx.font = `${fontSize}px Georgia, serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            const x = 512;
+            const y = d.textY * 1024 / 600;
+            const width = ctx.measureText(d.monogram).width + fontSize * 0.8;
+            ctx.fillStyle = d.background;
+            ctx.fillRect(x - width / 2, y - fontSize * 0.7, width, fontSize * 1.4);
+            ctx.fillStyle = d.ink;
+            ctx.fillText(d.monogram, x, y);
+          }
 
           // Subtle fabric texture overlay
           if (d.texture) {
@@ -342,14 +382,24 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
 
     // 2. Camera setup
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    camera.position.set(0, 0.8, 5.2);
+    camera.position.set(0, 0.8, 5.2 / zoom);
+    cameraRef.current = camera;
 
     // 3. Renderer setup
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch {
+      setRenderError("WebGL is unavailable in this browser. Here's your 2D product preview.");
+      setLoading(false);
+      return;
+    }
+    setRenderError("");
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setAutoRotate(false);
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     rendererRef.current = renderer;
 
     container.replaceChildren(renderer.domElement);
@@ -387,16 +437,19 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
     renderBatikCanvas(design).then((canvas) => {
       if (destroyed) return;
 
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(2, 2);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 1);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
       textureRef.current = texture;
 
       const material = new THREE.MeshStandardMaterial({
         map: texture,
         roughness: design.material === "Satin" ? 0.35 : design.material === "Linen blend" ? 0.85 : 0.65,
         metalness: design.material === "Satin" ? 0.25 : 0.05,
+        name: "batik-print",
       });
 
       const model = createProductMesh(design.product, material);
@@ -407,6 +460,7 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
 
     // 6. Interactive Drag Controls (Rotate with mouse / touch)
     const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
       isDraggingRef.current = true;
       prevMouseRef.current = { x: e.clientX, y: e.clientY };
     };
@@ -440,13 +494,30 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
       prevMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     };
 
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!modelGroupRef.current) return;
+      const directions: Record<string, [number, number]> = {
+        ArrowLeft: [-0.16, 0], ArrowRight: [0.16, 0], ArrowUp: [0, -0.12], ArrowDown: [0, 0.12],
+      };
+      const direction = directions[e.key];
+      if (direction) {
+        e.preventDefault();
+        modelGroupRef.current.rotation.y += direction[0];
+        modelGroupRef.current.rotation.x = Math.max(-0.6, Math.min(0.6, modelGroupRef.current.rotation.x + direction[1]));
+      }
+    };
+
     const domEl = renderer.domElement;
+    domEl.tabIndex = 0;
+    domEl.setAttribute("role", "img");
+    domEl.setAttribute("aria-label", `${design.name}, interactive 3D ${design.product} preview. Drag to rotate or use the arrow keys.`);
     domEl.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
     domEl.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: true });
     window.addEventListener("touchend", onMouseUp);
+    domEl.addEventListener("keydown", onKeyDown);
 
     // 7. Render Loop
     const animate = () => {
@@ -481,31 +552,50 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
       domEl.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onMouseUp);
-
-      if (textureRef.current) textureRef.current.dispose();
+      domEl.removeEventListener("keydown", onKeyDown);
+      if (modelGroupRef.current) {
+        const geometries = new Set<THREE.BufferGeometry>();
+        const materials = new Set<THREE.Material>();
+        modelGroupRef.current.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            geometries.add(child.geometry);
+            for (const material of Array.isArray(child.material) ? child.material : [child.material]) materials.add(material);
+          }
+        });
+        geometries.forEach((geometry) => geometry.dispose());
+        materials.forEach((material) => material.dispose());
+      }
+      textureRef.current?.dispose();
+      textureRef.current = null;
+      modelGroupRef.current = null;
+      sceneRef.current = null;
+      rendererRef.current = null;
+      cameraRef.current = null;
       renderer.dispose();
       container.replaceChildren();
     };
+  // Product changes replace the model. The following effect refreshes its print; the camera effect handles zoom.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [design.product]);
 
-  // Update texture dynamically when design parameters change without reloading full scene
+  // Update the print without rebuilding the model; only the listed design fields affect its texture.
   useEffect(() => {
     let active = true;
     renderBatikCanvas(design).then((canvas) => {
       if (!active || !modelGroupRef.current) return;
-      if (textureRef.current) {
-        textureRef.current.dispose();
-      }
+      const previousTexture = textureRef.current;
       const newTexture = new THREE.CanvasTexture(canvas);
       newTexture.wrapS = THREE.RepeatWrapping;
       newTexture.wrapT = THREE.RepeatWrapping;
-      newTexture.repeat.set(2, 2);
+      newTexture.repeat.set(1, 1);
+      newTexture.colorSpace = THREE.SRGBColorSpace;
+      newTexture.anisotropy = rendererRef.current?.capabilities.getMaxAnisotropy() ?? 1;
       textureRef.current = newTexture;
 
       modelGroupRef.current.traverse((child) => {
         if (child instanceof THREE.Mesh && child.material) {
           const mat = child.material as THREE.MeshStandardMaterial;
-          if (mat.map !== undefined && mat.name !== "accent") {
+          if (previousTexture && mat.map === previousTexture) {
             mat.map = newTexture;
             mat.roughness = design.material === "Satin" ? 0.35 : design.material === "Linen blend" ? 0.85 : 0.65;
             mat.metalness = design.material === "Satin" ? 0.25 : 0.05;
@@ -513,10 +603,12 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
           }
         }
       });
+      previousTexture?.dispose();
     });
     return () => {
       active = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     design.motif,
     design.ink,
@@ -529,13 +621,24 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
     design.repeat,
     design.mirror,
     design.secondary,
+    design.placement,
+    design.border,
+    design.monogram,
+    design.textSize,
+    design.textY,
     design.texture,
     design.material,
+    design.opacity,
   ]);
+
+  useEffect(() => {
+    if (cameraRef.current) cameraRef.current.position.z = 5.2 / zoom;
+  }, [zoom]);
 
   return (
     <div className={`relative w-full h-full select-none cursor-grab active:cursor-grabbing ${className}`}>
-      <div ref={mountRef} className="w-full h-full min-h-[340px]" />
+      <div ref={mountRef} className="w-full h-full min-h-[340px]" aria-label={`${design.name}, interactive 3D ${design.product} preview. Drag to rotate or focus and use the arrow keys.`} />
+      {renderError && <div className="absolute inset-0 grid place-items-center bg-[#f4eee5] p-5" role="status"><div className="max-w-xs text-center"><p className="text-xs font-semibold text-[#514267]">{renderError}</p><img className="mt-3 max-h-56 w-full object-contain" src={designImage(design)} alt={`${design.name} 2D product preview`} /></div></div>}
 
       {/* Floating 3D Control overlay */}
       <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
@@ -548,6 +651,7 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
               : "bg-white/80 text-[#282540] border-gray-300 hover:bg-white"
           }`}
           title="Toggle continuous rotation"
+          aria-pressed={autoRotate}
         >
           {autoRotate ? "↻ Spinning" : "⏸ Paused"}
         </button>
@@ -560,6 +664,7 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
           }}
           className="px-2 py-1 text-xs rounded-full bg-white/80 text-gray-700 border border-gray-300 hover:bg-white transition-colors"
           title="Reset 3D view orientation"
+          aria-label="Reset 3D view orientation"
         >
           Reset view
         </button>

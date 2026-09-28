@@ -1,4 +1,6 @@
 .batik-lab { --lab-ink:#262544; --lab-muted:#737184; --lab-line:#dcd8e3; --lab-paper:#f6f3ed; --lab-coral:#e77659; color:var(--lab-ink); background:var(--lab-paper); border-radius:24px; overflow:hidden; font-family: "Nunito",sans-serif; box-shadow:0 15px 70px #0002; }
+.batik-lab canvas { touch-action:none; }
+.batik-lab canvas:focus-visible { outline:3px solid #df775d; outline-offset:-4px; }
 main>div:has(>.batik-lab) { max-width:1600px; }
 .batik-lab button,.batik-lab input,.batik-lab select,.batik-lab summary { -webkit-tap-highlight-color:transparent; }
 .batik-lab button { cursor:pointer; }.batik-lab button:disabled { opacity:.4; cursor:not-allowed; }.batik-lab :focus-visible { outline:3px solid #df775d; outline-offset:3px; }
