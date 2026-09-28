@@ -8,30 +8,32 @@ export const Route = createFileRoute("/api/public/icon")({
   server: {
     handlers: {
       GET: async () => {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data } = await supabaseAdmin
-          .from("project_assets")
-          .select("storage_path, mime_type")
-          .eq("category", "primary-logo")
-          .eq("kind", "image")
-          .limit(1)
-          .maybeSingle();
+        const fallback = (cacheControl = "no-store") => new Response(null, { status: 302, headers: { location: "/favicon.ico", "cache-control": cacheControl } });
+        if (!process.env["SUPABASE_URL"] || !process.env["SUPABASE_SERVICE_ROLE_KEY"]) return fallback();
+        try {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data } = await supabaseAdmin
+            .from("project_assets")
+            .select("storage_path, mime_type")
+            .eq("category", "primary-logo")
+            .eq("kind", "image")
+            .limit(1)
+            .maybeSingle();
 
-        if (!data?.storage_path) {
-          return new Response(null, { status: 302, headers: { location: "/favicon.ico", "cache-control": "public, max-age=60" } });
+          if (!data?.storage_path) return fallback("public, max-age=60");
+
+          const file = await supabaseAdmin.storage.from("project-assets").download(data.storage_path);
+          if (file.error || !file.data) return fallback();
+
+          return new Response(await file.data.arrayBuffer(), {
+            headers: {
+              "content-type": data.mime_type || "image/png",
+              "cache-control": "public, max-age=300",
+            },
+          });
+        } catch {
+          return fallback();
         }
-
-        const file = await supabaseAdmin.storage.from("project-assets").download(data.storage_path);
-        if (file.error || !file.data) {
-          return new Response(null, { status: 302, headers: { location: "/favicon.ico", "cache-control": "no-store" } });
-        }
-
-        return new Response(await file.data.arrayBuffer(), {
-          headers: {
-            "content-type": data.mime_type || "image/png",
-            "cache-control": "public, max-age=300",
-          },
-        });
       },
     },
   },

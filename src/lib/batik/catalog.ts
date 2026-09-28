@@ -47,20 +47,28 @@ export const designSchema = z.object({
   name: z.string().max(60), product: z.string(), size: z.string(), material: z.string(),
   motif: z.enum(["kawung", "parang", "hibiscus", "bamboo", "mega", "ceplok", "leaf", "star", "custom"]),
   customShape: motifShapeSchema.default("rosette"), customCenter: motifCenterSchema.default("circle"), customCount: z.number().int().min(4).max(12).default(8),
+  customMotifImage: z.string().max(8000).regex(/^(?:|data:image\/webp;base64,[A-Za-z0-9+/]+={0,2})$/).default(""),
   secondary: z.enum(["none", "kawung", "parang", "hibiscus", "bamboo", "mega", "ceplok", "leaf", "star", "custom"]),
   secondaryScale: z.number().min(0.15).max(1).default(0.38), secondaryX: z.number().min(-60).max(120).default(34), secondaryY: z.number().min(-60).max(120).default(34), secondaryRotation: z.number().min(0).max(360).default(0), secondaryOpacity: z.number().min(0.1).max(1).default(1),
   layers: z.array(motifLayerSchema).max(3).default([]),
   ink: z.string().regex(/^#[0-9a-f]{6}$/i), accent: z.string().regex(/^#[0-9a-f]{6}$/i), background: z.string().regex(/^#[0-9a-f]{6}$/i), detail: z.string().regex(/^#[0-9a-f]{6}$/i),
   scale: z.number().min(24).max(120), spacing: z.number().min(0).max(32), rotation: z.number().min(0).max(180), opacity: z.number().min(0.15).max(1),
   repeat: z.enum(["grid", "brick", "half-drop", "diamond"]), mirror: z.boolean(), placement: z.enum(["all", "panel", "border"]), border: z.boolean(), texture: z.boolean(),
-  monogram: z.string().max(16), textSize: z.number().min(14).max(54), textY: z.number().min(180).max(450),
+  monogram: z.string().max(16), monogramFont: z.enum(["serif", "sans", "script"]).default("serif"), monogramColor: z.enum(["ink", "detail", "accent"]).default("ink"), textSize: z.number().min(14).max(54), textX: z.number().min(120).max(480).default(300), textY: z.number().min(180).max(450),
 }).refine((d) => { const p = PRODUCTS.find((x) => x.id === d.product); return !!p && p.sizes.includes(d.size) && p.materials.includes(d.material); }, "Invalid product options");
 const paletteColourSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 export const customPaletteSchema = z.object({ id: z.string().uuid(), name: z.string().min(1).max(30), colours: z.tuple([paletteColourSchema, paletteColourSchema, paletteColourSchema, paletteColourSchema]) });
 export type Design = z.infer<typeof designSchema>;
 export type MotifLayer = z.infer<typeof motifLayerSchema>;
 export type CustomPalette = z.infer<typeof customPaletteSchema>;
-export const DEFAULT_DESIGN: Design = { name: "Midnight bloom", product: "tote", size: "Standard", material: "Canvas", motif: "kawung", customShape: "rosette", customCenter: "circle", customCount: 8, secondary: "none", secondaryScale: 0.38, secondaryX: 34, secondaryY: 34, secondaryRotation: 0, secondaryOpacity: 1, layers: [], ink: "#252663", accent: "#e9b65c", background: "#f4eddb", detail: "#cd765b", scale: 60, spacing: 6, rotation: 0, opacity: 1, repeat: "grid", mirror: false, placement: "all", border: false, texture: true, monogram: "", textSize: 28, textY: 320 };
+export interface DesignStarter { name: string; description: string; settings: Partial<Design> }
+export const DEFAULT_DESIGN: Design = { name: "Midnight bloom", product: "tote", size: "Standard", material: "Canvas", motif: "kawung", customShape: "rosette", customCenter: "circle", customCount: 8, customMotifImage: "", secondary: "none", secondaryScale: 0.38, secondaryX: 34, secondaryY: 34, secondaryRotation: 0, secondaryOpacity: 1, layers: [], ink: "#252663", accent: "#e9b65c", background: "#f4eddb", detail: "#cd765b", scale: 60, spacing: 6, rotation: 0, opacity: 1, repeat: "grid", mirror: false, placement: "all", border: false, texture: true, monogram: "", monogramFont: "serif", monogramColor: "ink", textSize: 28, textX: 300, textY: 320 };
+export const DESIGN_STARTERS: DesignStarter[] = [
+  { name: "Garden court", description: "Hibiscus, leaf and warm gold.", settings: { motif: "hibiscus", repeat: "grid", scale: 72, spacing: 8, rotation: 0, ink: "#205b49", accent: "#d5ac55", background: "#f4eddb", detail: "#bb647b", secondary: "leaf", secondaryScale: 0.32, secondaryX: 48, secondaryY: 42, secondaryRotation: 0, secondaryOpacity: 0.85, layers: [], opacity: 1, mirror: false, placement: "all", border: false, texture: true } },
+  { name: "Parang tide", description: "A flowing repeat in coastal blues.", settings: { motif: "parang", repeat: "brick", scale: 58, spacing: 5, rotation: 45, ink: "#164766", accent: "#d3a866", background: "#e6f0ec", detail: "#529caa", secondary: "none", layers: [], opacity: 1, mirror: false, placement: "all", border: false, texture: true } },
+  { name: "Cloud silk", description: "Layered clouds with a dusk glow.", settings: { motif: "mega", repeat: "half-drop", scale: 78, spacing: 7, rotation: 15, ink: "#66395d", accent: "#d6ac71", background: "#f3e9ee", detail: "#b38bb3", secondary: "star", secondaryScale: 0.28, secondaryX: 60, secondaryY: 42, secondaryRotation: 15, secondaryOpacity: 0.8, layers: [], opacity: 1, mirror: false, placement: "all", border: false, texture: true } },
+  { name: "Monsoon lattice", description: "Pucuk rebung meets earth and ink.", settings: { motif: "bamboo", repeat: "diamond", scale: 68, spacing: 9, rotation: 0, ink: "#363b32", accent: "#a88452", background: "#e4dbca", detail: "#a5523f", secondary: "ceplok", secondaryScale: 0.26, secondaryX: 46, secondaryY: 52, secondaryRotation: 45, secondaryOpacity: 0.75, layers: [], opacity: 1, mirror: false, placement: "all", border: false, texture: true } },
+];
 export const ORDER_STAGES = ["Order confirmed", "Printing your design", "Quality check & packing", "Out for delivery", "Delivered"];
 export const PAYMENTS = ["FPX online banking", "Touch 'n Go eWallet", "Card"] as const;
 export const money = (amount: number) => `RM${amount.toFixed(2)}`;

@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { Expand, Minimize2, RotateCcw, RotateCw } from "lucide-react";
+import { Download, Expand, Minimize2, RotateCcw, RotateCw } from "lucide-react";
 import * as THREE from "three";
 import { productSizeScale, type Design } from "@/lib/batik/catalog";
-import { designImage, designSvg } from "@/lib/batik/design";
+import { designImage, designSvg, downloadBlob } from "@/lib/batik/design";
 
 interface Batik3DViewerProps {
   design: Design;
   zoom?: number;
   className?: string;
 }
+
+const previewStages = [
+  { id: "atelier", label: "Atelier", background: "radial-gradient(ellipse at 50% 42%, #fffaf1 0, #e8dccc 43%, #d8cbbd 73%, #c8b8aa 100%)" },
+  { id: "gallery", label: "Night gallery", background: "radial-gradient(ellipse at 50% 38%, #514762 0, #29243a 54%, #17151e 100%)" },
+  { id: "garden", label: "Garden light", background: "radial-gradient(ellipse at 50% 38%, #f3f3dd 0, #dce6d6 50%, #bbcbbd 100%)" },
+] as const;
 
 export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewerProps) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -20,6 +26,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
   const [renderError, setRenderError] = useState("");
   const [fullscreen, setFullscreen] = useState(false);
   const [fullscreenError, setFullscreenError] = useState("");
+  const [captureNotice, setCaptureNotice] = useState("");
+  const [previewStage, setPreviewStage] = useState<(typeof previewStages)[number]["id"]>("atelier");
 
   // Keep references to Three.js objects
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -67,6 +75,28 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       else setFullscreenError("Full-screen view is unavailable in this browser.");
     } catch {
       setFullscreenError("The browser could not open full-screen view.");
+    }
+  };
+
+  const save3DStill = () => {
+    setCaptureNotice("Capturing transparent PNG…");
+    const renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    const camera = cameraRef.current;
+    if (!renderer || !scene || !camera) {
+      setCaptureNotice("The 3D model is not ready to capture yet.");
+      return;
+    }
+    try {
+      renderer.render(scene, camera);
+      const base64 = renderer.domElement.toDataURL("image/png").split(",")[1];
+      if (!base64) throw new Error("The 3D image could not be encoded.");
+      const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+      const blob = new Blob([bytes.buffer], { type: "image/png" });
+      downloadBlob(blob, `${design.name.replace(/[^a-z0-9-]/gi, "-") || "batik-design"}-${design.product}-3d.png`);
+      setCaptureNotice("Transparent 3D PNG saved.");
+    } catch (error) {
+      setCaptureNotice(error instanceof Error ? error.message : "The 3D image could not be captured.");
     }
   };
 
@@ -142,16 +172,20 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
             }
           }
           if (d.monogram) {
-            const fontSize = d.textSize * 1024 / 600;
-            ctx.font = `${fontSize}px Georgia, serif`;
+            const signatureScale = 1024 / 600;
+            const fontSize = d.textSize * signatureScale;
+            const x = d.textX * signatureScale;
+            const y = d.textY * signatureScale;
+            const fontFamily = d.monogramFont === "sans" ? "Arial, sans-serif" : d.monogramFont === "script" ? "cursive" : "Georgia, serif";
+            const signatureColour = d.monogramColor === "accent" ? d.accent : d.monogramColor === "detail" ? d.detail : d.ink;
+            ctx.font = `${fontSize}px ${fontFamily}`;
             ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            const x = 512;
-            const y = d.textY * 1024 / 600;
-            const width = ctx.measureText(d.monogram).width + fontSize * 0.8;
+            ctx.textBaseline = "alphabetic";
             ctx.fillStyle = d.background;
-            ctx.fillRect(x - width / 2, y - fontSize * 0.7, width, fontSize * 1.4);
-            ctx.fillStyle = d.ink;
+            ctx.beginPath();
+            ctx.roundRect(x - 120 * signatureScale, y - fontSize, 240 * signatureScale, (d.textSize + 22) * signatureScale, 4 * signatureScale);
+            ctx.fill();
+            ctx.fillStyle = signatureColour;
             ctx.fillText(d.monogram, x, y);
           }
 
@@ -369,8 +403,6 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         scarfGeo.computeVertexNormals();
         fitFabricUvs(scarfGeo);
         const scarfMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
-        scarfMaterial.roughness = 0.4;
-        scarfMaterial.metalness = 0.12;
         const scarfMesh = new THREE.Mesh(scarfGeo, scarfMaterial);
         scarfMesh.castShadow = true;
         group.add(scarfMesh);
@@ -973,10 +1005,14 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     design.customShape,
     design.customCenter,
     design.customCount,
+    design.customMotifImage,
     design.placement,
     design.border,
     design.monogram,
+    design.monogramFont,
+    design.monogramColor,
     design.textSize,
+    design.textX,
     design.textY,
     design.texture,
     design.material,
@@ -991,7 +1027,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
   }, [zoom]);
 
   return (
-    <div ref={viewerRef} className={`batik-3d-viewer relative w-full h-full select-none cursor-grab active:cursor-grabbing ${className}`}>
+    <div ref={viewerRef} style={{ background: previewStages.find((stage) => stage.id === previewStage)!.background }} className={`batik-3d-viewer relative w-full h-full select-none cursor-grab active:cursor-grabbing ${className}`}>
       <div ref={mountRef} className="w-full h-full min-h-[340px] touch-none" aria-label={`${design.name}, interactive 3D ${design.product} preview. Drag to rotate or focus and use the arrow keys.`} />
       {renderError && <div className="absolute inset-0 grid place-items-center bg-[#f4eee5] p-5" role="status"><div className="max-w-xs text-center"><p className="text-xs font-semibold text-[#514267]">{renderError}</p><img className="mt-3 max-h-56 w-full object-contain" src={designImage(design)} alt={`${design.name} 2D product preview`} /></div></div>}
 
@@ -1063,6 +1099,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       </div>
 
       {fullscreenError && <p className="absolute bottom-14 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[#282338]/85 px-3 py-2 text-center text-xs text-[#fff5e8]" role="status">{fullscreenError}</p>}
+      {captureNotice && <p className="absolute top-14 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[#282338]/85 px-3 py-2 text-center text-xs text-[#fff5e8]" role="status" aria-live="polite">{captureNotice}</p>}
 
       {loading && (
         <div className="absolute inset-0 grid place-items-center bg-[#f4eee5]/70 backdrop-blur-xs text-xs font-semibold text-[#514267]">
@@ -1072,6 +1109,10 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
 
       <div className="batik-3d-instructions absolute bottom-4 left-4 pointer-events-none rounded-full border border-white/50 bg-[#282338]/75 px-3.5 py-2 text-[10px] font-semibold tracking-wide text-[#fff5e8] shadow-lg backdrop-blur-md">
         <span className="mr-2 text-[#efb985]">✦</span>Drag to explore · Your print, in motion
+      </div>
+      <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 rounded-full border border-white/50 bg-white/55 p-1 shadow-md backdrop-blur-md" role="group" aria-label="3D preview lighting and export">
+        {previewStages.map((stage) => <button key={stage.id} type="button" onClick={() => setPreviewStage(stage.id)} aria-pressed={previewStage === stage.id} className={`rounded-full px-2.5 py-1.5 text-[10px] font-semibold transition-colors ${previewStage === stage.id ? "bg-[#29243a] text-[#fff5e8]" : "text-[#29243a] hover:bg-white/75"}`}>{stage.label}</button>)}
+        <button type="button" onClick={save3DStill} disabled={loading || !!renderError} title="Save this camera angle as a transparent PNG" aria-label="Save transparent 3D product PNG" className="grid size-7 place-items-center rounded-full text-[#29243a] hover:bg-white/75 disabled:opacity-40"><Download size={14} /></button>
       </div>
     </div>
   );

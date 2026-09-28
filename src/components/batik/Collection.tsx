@@ -7,18 +7,23 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 export function Collection({ studio: s }: { studio: BatikStudio }) {
   const [previewProduct, setPreviewProduct] = useState<StudioProduct | null>(null);
   const [previewMode, setPreviewMode] = useState<"2d" | "3d">("2d");
+  const [previewSize, setPreviewSize] = useState("");
+  const [previewMaterial, setPreviewMaterial] = useState("");
   const preview = (product: StudioProduct, mode: "2d" | "3d") => {
     setPreviewProduct(product);
     setPreviewMode(mode);
+    setPreviewSize(product.sizes[0]);
+    setPreviewMaterial(product.materials[0]);
   };
+  const previewDesign = previewProduct ? { ...s.design, product: previewProduct.id, size: previewSize || previewProduct.sizes[0], material: previewMaterial || previewProduct.materials[0] } : null;
   const designProduct = () => {
-    if (!previewProduct) return;
-    s.selectProduct(previewProduct.id);
+    if (!previewProduct || !previewDesign) return;
+    s.selectProduct(previewProduct.id, previewDesign.size, previewDesign.material);
     setPreviewProduct(null);
   };
   return <>
     <section className="lab-section"><header><span className="lab-eyebrow">The collection / {PRODUCTS.length} canvases</span><h2>One pattern. A world of possibilities.</h2><p>Your current design travels with you. Choose a canvas to start customising.</p></header>
-      <div className="lab-filter"><div className="lab-segments">{CATEGORIES.map((c) => <button type="button" key={c} aria-pressed={s.category === c} onClick={() => s.setCategory(c)}>{c}</button>)}</div><input aria-label="Search products" placeholder="Find your next canvas…" value={s.query} onChange={(e) => s.setQuery(e.target.value)} /></div>
+      <div className="lab-filter"><div className="lab-segments">{CATEGORIES.map((c) => <button type="button" key={c} aria-pressed={s.category === c} onClick={() => s.setCategory(c)}>{c}</button>)}</div><label className="lab-sort"><span className="sr-only">Sort products</span><select aria-label="Sort products" value={s.productSort} onChange={(event) => s.setProductSort(event.target.value as typeof s.productSort)}><option value="featured">Featured</option><option value="price-ascending">Price: low to high</option><option value="price-descending">Price: high to low</option><option value="name">Name: A to Z</option></select></label><input aria-label="Search products" placeholder="Find your next canvas…" value={s.query} onChange={(e) => s.setQuery(e.target.value)} /></div>
       <div className="lab-collection">{s.products.map((p) => <article key={p.id} className="lab-product-card">
         <button type="button" className="lab-product-art" onClick={() => preview(p, "2d")} aria-label={`Preview ${p.name} in 2D`}><DesignPreview design={{ ...s.design, product: p.id, size: p.sizes[0], material: p.materials[0] }} /><span className="lab-category">{p.category}</span><span className="lab-preview-cue"><Eye size={14} /> Quick view</span></button>
         <div className="lab-card-line"><strong>{p.name}</strong><button type="button" className="lab-3d-button" onClick={() => preview(p, "3d")} aria-label={`Preview ${p.name} in 3D`}><Box size={16} /> 3D</button></div>
@@ -29,10 +34,10 @@ export function Collection({ studio: s }: { studio: BatikStudio }) {
     </section>
     <Dialog open={!!previewProduct} onOpenChange={(open) => { if (!open) setPreviewProduct(null); }}>
       <DialogContent className="lab-quickview-dialog w-[min(960px,calc(100vw-2rem))] max-w-none border-[#d9cfbf] bg-[#fffaf1] text-[#292640]">
-        {previewProduct && <>
+        {previewProduct && previewDesign && <>
           <DialogHeader>
             <DialogTitle>{previewProduct.name}</DialogTitle>
-            <DialogDescription>{previewProduct.description} · From {money(previewProduct.price)} · simulated pricing</DialogDescription>
+            <DialogDescription>{previewProduct.description} · {money(unitPrice(previewDesign))} selected · simulated pricing</DialogDescription>
           </DialogHeader>
           <div className="lab-quickview-layout">
             <div className="lab-quickview-stage">
@@ -40,10 +45,10 @@ export function Collection({ studio: s }: { studio: BatikStudio }) {
                 <button type="button" aria-pressed={previewMode === "2d"} onClick={() => setPreviewMode("2d")}>2D view</button>
                 <button type="button" aria-pressed={previewMode === "3d"} onClick={() => setPreviewMode("3d")}><Box size={14} /> 3D view</button>
               </div>
-              <div className="lab-quickview-model"><DesignPreview design={{ ...s.design, product: previewProduct.id, size: previewProduct.sizes[0], material: previewProduct.materials[0] }} mode={previewMode === "3d" ? "3d" : "product"} /></div>
+              <div className="lab-quickview-model"><DesignPreview design={previewDesign} mode={previewMode === "3d" ? "3d" : "product"} /></div>
               {previewMode === "3d" && <p className="lab-quickview-cue">Drag the model to inspect the silhouette · Your pattern stays live</p>}
             </div>
-            <aside className="lab-quickview-details"><span className="lab-eyebrow">{previewProduct.category} / made for your pattern</span><h3>{previewProduct.name}</h3><p>{previewProduct.description}</p><dl><div><dt>Available sizes</dt><dd>{previewProduct.sizes.join(" · ")}</dd></div><div><dt>Materials</dt><dd>{previewProduct.materials.join(" · ")}</dd></div><div><dt>Starting price</dt><dd>{money(previewProduct.price)}</dd></div></dl></aside>
+            <aside className="lab-quickview-details"><span className="lab-eyebrow">{previewProduct.category} / made for your pattern</span><h3>{previewProduct.name}</h3><p>{previewProduct.description}</p><label>Size<select aria-label="Quick view size" value={previewDesign.size} onChange={(event) => setPreviewSize(event.target.value)}>{previewProduct.sizes.map((size) => <option key={size}>{size}</option>)}</select></label><label>Material<select aria-label="Quick view material" value={previewDesign.material} onChange={(event) => setPreviewMaterial(event.target.value)}>{previewProduct.materials.map((material) => <option key={material}>{material}</option>)}</select></label><div className="lab-quickview-price"><span>Selected price</span><strong>{money(unitPrice(previewDesign))}</strong></div></aside>
           </div>
           <DialogFooter><button type="button" className="lab-button lab-primary" onClick={designProduct}>Design this canvas <ArrowUpRight size={15} /></button></DialogFooter>
         </>}
