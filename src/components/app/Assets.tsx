@@ -63,6 +63,11 @@ export function Dropzone({ slot, section, imagesOnly, label }: { slot: string; s
         <span className="text-foreground">{label ?? "Drop files here or click to choose"}</span>
         <span>{imagesOnly ? "PNG, JPG, WEBP, GIF, SVG" : "Images, documents, video, audio"} · select as many as you need · up to {MAX_FILE_MB} MB each</span>
       </div>
+      {rejected.length > 0 && (
+        <p className="mt-1.5 text-[11px] text-destructive">
+          Only images go here: {rejected.join(", ")} {rejected.length === 1 ? "was" : "were"} skipped. Use the Project assets library for video, audio and documents.
+        </p>
+      )}
       <input ref={ref} type="file" multiple accept={imagesOnly ? IMAGE_ACCEPT : ACCEPT} className="hidden" data-testid={`upload-${slot}`} onChange={(e) => { send(e.target.files); e.target.value = ""; }} />
       {mine.length > 0 && (
         <ul className="mt-2 space-y-1.5">
