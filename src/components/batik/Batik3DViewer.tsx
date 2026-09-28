@@ -375,10 +375,10 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
 
     // Pedestal shadow receiver disc
     const floorGeo = new THREE.CircleGeometry(2.6, 48);
-    floorGeo.rotation.x = -Math.PI / 2;
-    floorGeo.position.y = -1.9;
     const floorMat = new THREE.ShadowMaterial({ opacity: 0.22 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.9;
     floor.receiveShadow = true;
     scene.add(floor);
 
