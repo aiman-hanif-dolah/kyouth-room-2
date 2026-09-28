@@ -168,6 +168,15 @@ export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset;
         <Badge tone={a.kind === "image" ? "brand" : "neutral"}>{KIND_LABEL[a.kind] ?? "Document"}</Badge>
         {showSection && <Badge>{SLOT_LABEL(a.slot)}</Badge>}
       </div>
+      {a.kind === "image" && canEdit && (
+        <div className="space-y-1">
+          <Button size="sm" variant="ghost" disabled={suggesting} onClick={suggest} aria-label="Suggest caption, alt text and tags with AI">
+            <Sparkles className="size-3.5" /> {suggesting ? "Thinking…" : "Suggest with AI"}
+          </Button>
+          <p className="text-[11px] text-muted-foreground">Fills caption, alt text and tags with a suggestion. Check and tweak before saving elsewhere.</p>
+          {aiError && <p className="text-[11px] text-destructive">{aiError}</p>}
+        </div>
+      )}
       <BlurInput label="Caption" value={a.caption} onSave={(v) => updateAsset(a.id, { caption: v })} />
       {a.kind === "image" && <BlurInput label="Alt text" placeholder="Alt text (describe the image)" value={a.alt_text} onSave={(v) => updateAsset(a.id, { alt_text: v })} />}
       <BlurInput label="Tags" placeholder="Tags, comma separated" value={a.tags.join(", ")} onSave={(v) => updateAsset(a.id, { tags: v.split(",").map((t) => t.trim()).filter(Boolean) })} />
