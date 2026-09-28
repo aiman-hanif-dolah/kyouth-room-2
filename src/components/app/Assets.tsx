@@ -212,6 +212,7 @@ export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section 
   const { upload, urls, jobs, canEdit } = useAssets();
   const ref = useRef<HTMLInputElement>(null);
   const [rejected, setRejected] = useState<string[]>([]);
+  const [preview, setPreview] = useState(false);
   const busy = jobs.some((j) => j.slot === slot && !j.done && !j.error);
   const send = async (list: FileList | null) => {
     if (!list || !list.length) return;
@@ -222,9 +223,10 @@ export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section 
     const ids = await upload(files, { slot, section });
     if (ids.length) onChange({ ...item, url: `asset:${ids[0]}` });
   };
+  const resolved = resolveSlotUrl(item.url, urls);
   return (
     <div>
-      <ImageSlot item={{ ...item, url: resolveSlotUrl(item.url, urls) }} onChange={onChange} {...(aspect ? { aspect } : {})} />
+      <ImageSlot item={{ ...item, url: resolved }} onChange={onChange} {...(aspect ? { aspect } : {})} {...(resolved ? { onView: () => setPreview(true) } : {})} />
       {canEdit ? (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <Button size="sm" variant="brand" disabled={busy} onClick={() => ref.current?.click()}>
@@ -240,6 +242,9 @@ export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section 
         </div>
       ) : (
         <p className="mt-2 text-[11px] text-muted-foreground">Switch to Edit mode (passcode) to upload an image directly.</p>
+      )}
+      {preview && resolved && (
+        <Lightbox items={[{ src: resolved, alt: item.caption || "Uploaded visual", title: item.caption }]} index={0} onClose={() => setPreview(false)} />
       )}
     </div>
   );
