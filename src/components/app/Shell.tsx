@@ -1,4 +1,8 @@
 import { useState, type ReactNode } from "react";
+
+// On-screen emoji keyboard for the emoji passcode. Append-only keys plus
+// backspace; the typed sequence is compared server-side like the text code.
+const EMOJI_KEYS = ["😎", "🔥", "🚀", "🌙", "⭐", "🍌", "🎨", "💡", "🐝", "🌺", "🏆", "❤️"];
 import { Link } from "@tanstack/react-router";
 import { Briefcase, Building2, ClipboardCheck, LayoutDashboard, Megaphone, Menu, MonitorPlay, Package, Sparkles, Users, X, RotateCcw, FolderOpen, Lock, PencilLine } from "lucide-react";
 import { useProject } from "@/lib/project/store";
@@ -74,6 +78,30 @@ export function Shell({ children }: { children: ReactNode }) {
             aria-label="Edit passcode"
             className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
+          <div>
+            <p className="mb-1 text-[11px] text-muted-foreground">Emoji keyboard (emoji passcode works too):</p>
+            <div className="grid grid-cols-6 gap-1" role="group" aria-label="Emoji keyboard">
+              {EMOJI_KEYS.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  aria-label={`Emoji ${e}`}
+                  onClick={() => { setCode((c) => c + e); setBadCode(false); }}
+                  className="rounded-md border border-border bg-background py-1 text-base leading-none transition-colors hover:bg-sidebar-accent"
+                >
+                  {e}
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-label="Delete last emoji"
+                onClick={() => { setCode((c) => Array.from(c).slice(0, -1).join("")); setBadCode(false); }}
+                className="rounded-md border border-border bg-background py-1 text-xs leading-none text-muted-foreground transition-colors hover:bg-sidebar-accent"
+              >
+                ⌫
+              </button>
+            </div>
+          </div>
           {badCode && <p className="text-[11px] text-destructive">Incorrect passcode.</p>}
           <div className="flex gap-1.5">
             <Button size="sm" variant="brand" disabled={checking || !code} onClick={submitCode}>{checking ? "Checking…" : "Unlock"}</Button>
