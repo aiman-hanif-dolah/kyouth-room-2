@@ -28,7 +28,8 @@ export function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { state, sync, syncError } = useProject();
   const { canEdit, unlock, lock } = useEditMode();
-  const { primaryLogoId } = useAssets();
+  const { primaryLogoId, urls } = useAssets();
+  const primaryLogoUrl = primaryLogoId ? urls[primaryLogoId] : undefined;
 
   // Keep the browser tab icon (favicon) in step with the chosen main logo without a reload.
   useEffect(() => {
@@ -141,10 +142,16 @@ export function Shell({ children }: { children: ReactNode }) {
     </nav>
   );
 
+  const brandMark = primaryLogoUrl ? (
+    <img src={primaryLogoUrl} alt={`${state.company.name} logo`} className="size-8 shrink-0 rounded-lg bg-background object-contain" />
+  ) : (
+    <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand text-sm font-semibold text-brand-foreground" aria-hidden="true">TV</div>
+  );
+
   const side = (
     <div className="flex h-full flex-col gap-6 p-4">
       <div className="flex items-center gap-2.5 px-2">
-        <div className="grid size-8 place-items-center rounded-lg bg-brand text-sm font-semibold text-brand-foreground">TV</div>
+        {brandMark}
         <div>
           <p className="text-sm font-medium leading-tight">{state.company.name}</p>
           <p className="text-[11px] text-muted-foreground">Project workspace</p>
@@ -162,7 +169,7 @@ export function Shell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background">
       <aside className="no-print fixed inset-y-0 left-0 hidden w-60 border-r border-sidebar-border bg-sidebar lg:block">{side}</aside>
       <div className="no-print sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/90 px-4 py-3 backdrop-blur lg:hidden">
-        <span className="text-sm font-medium">{state.company.name}</span>
+        <span className="flex items-center gap-2.5 text-sm font-medium">{brandMark}{state.company.name}</span>
         <Button size="sm" variant="ghost" aria-label="Open menu" onClick={() => setOpen(true)}>
           <Menu className="size-5" />
         </Button>
