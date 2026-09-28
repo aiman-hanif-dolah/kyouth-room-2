@@ -263,7 +263,7 @@ export function ImageSlot({ item, onChange, onDelete, aspect = "aspect-[4/3]" }:
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1 p-3 text-center text-xs text-muted-foreground">
             <ImagePlus className="size-5" />
-            No linked image. Paste a link, or upload files in the gallery below.
+            No image yet. Upload directly with the button below, or paste a link.
           </div>
         )}
       </div>

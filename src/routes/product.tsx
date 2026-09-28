@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useProject, uid } from "@/lib/project/store";
-import { AssetGallery, StorageNote } from "@/components/app/Assets";
-import { Area, Badge, Button, Card, ImageSlot, newImage, PageHeader, RowControls, StringList, move } from "@/components/app/kit";
+import { AssetGallery, SlotImageSlot, StorageNote } from "@/components/app/Assets";
+import { Area, Badge, Button, Card, newImage, PageHeader, RowControls, StringList, move } from "@/components/app/kit";
 import { SectionTaskPanel } from "@/components/app/SectionTask";
 import { ProductDemo } from "@/components/app/ProductDemo";
 
@@ -64,7 +64,7 @@ function ProductPage() {
       <Card className="mt-4" title="Product mockups" subtitle="Copy a prompt into your image tool, then upload any number of mockups below or paste a link." action={<Button size="sm" onClick={() => u((d) => { d.mockups.push({ ...newImage(), id: uid() }); })}><Plus className="size-3.5" /> Mockup prompt</Button>}>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {p.mockups.map((m, i) => (
-            <ImageSlot key={m.id} item={m} onChange={(v) => u((d) => { d.mockups[i] = v; })} onDelete={() => u((d) => { d.mockups.splice(i, 1); })} />
+            <SlotImageSlot key={m.id} item={m} slot="product.mockups" section="s4" onChange={(v) => u((d) => { d.mockups[i] = v; })} onDelete={() => u((d) => { d.mockups.splice(i, 1); })} />
           ))}
         </div>
         <div className="mt-6"><AssetGallery slot="product.mockups" section="s4" title="Mockup uploads" /></div>

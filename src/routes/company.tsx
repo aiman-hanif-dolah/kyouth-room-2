@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus, Star } from "lucide-react";
 import { useProject, uid } from "@/lib/project/store";
-import { AssetGallery, StorageNote } from "@/components/app/Assets";
-import { Area, Badge, Button, Card, Field, Fictional, ImageSlot, newImage, PageHeader, RowControls, StringList, move, AiNotConnected } from "@/components/app/kit";
+import { AssetGallery, SlotImageSlot, StorageNote } from "@/components/app/Assets";
+import { Area, Badge, Button, Card, Field, Fictional, newImage, PageHeader, RowControls, StringList, move, AiNotConnected } from "@/components/app/kit";
 import { SectionTaskPanel } from "@/components/app/SectionTask";
 import { cn } from "@/lib/utils";
 
@@ -129,16 +129,16 @@ function CompanyPage() {
         </Card>
       </div>
 
-      <Card className="mt-4" title="5. Logo and mood board" subtitle="Image generation is not connected here. Copy the prompt into your image tool, then upload the results below (as many as you like) or paste a link.">
+      <Card className="mt-4" title="5. Logo and mood board" subtitle="Image generation is not connected here. Upload your images directly on each card (they also land in the galleries below), or copy the prompt into your image tool and paste a link.">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div>
             <p className="mb-1.5 text-xs font-medium text-muted-foreground">Logo</p>
-            <ImageSlot item={c.logo} aspect="aspect-square" onChange={(v) => u1((d) => { d.logo = v; })} />
+            <SlotImageSlot item={c.logo} aspect="aspect-square" slot="company.logo" section="s1" onChange={(v) => u1((d) => { d.logo = v; })} />
           </div>
           {c.moodboard.map((m, i) => (
             <div key={m.id}>
               <p className="mb-1.5 text-xs font-medium text-muted-foreground">Mood board {i + 1}</p>
-              <ImageSlot item={m} aspect="aspect-square" onChange={(v) => u1((d) => { d.moodboard[i] = v; })} onDelete={() => u1((d) => { d.moodboard.splice(i, 1); })} />
+              <SlotImageSlot item={m} aspect="aspect-square" slot="company.moodboard" section="s1" onChange={(v) => u1((d) => { d.moodboard[i] = v; })} onDelete={() => u1((d) => { d.moodboard.splice(i, 1); })} />
             </div>
           ))}
         </div>
