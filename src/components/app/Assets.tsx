@@ -32,9 +32,20 @@ export function Dropzone({ slot, section, imagesOnly, label }: { slot: string; s
   const { upload, jobs, dismissJob, signedIn } = useAssets();
   const ref = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
+  const [rejected, setRejected] = useState<string[]>([]);
   if (!signedIn) return <SignInToUpload />;
   const mine = jobs.filter((j) => j.slot === slot);
-  const send = (list: FileList | null) => list && list.length && upload(Array.from(list), { slot, section });
+  const send = (list: FileList | null) => {
+    if (!list || !list.length) return;
+    let files = Array.from(list);
+    if (imagesOnly) {
+      // Drag-and-drop bypasses the input's accept attribute, so enforce image-only here too.
+      const bad = files.filter((f) => !isImageName(f.name)).map((f) => f.name);
+      files = files.filter((f) => isImageName(f.name));
+      setRejected(bad);
+    } else setRejected([]);
+    if (files.length) upload(files, { slot, section });
+  };
   return (
     <div>
       <div
