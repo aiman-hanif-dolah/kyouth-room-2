@@ -251,15 +251,20 @@ export function AiNotConnected({ what = "AI drafting" }: { what?: string }) {
 }
 
 /** Prompt slot: copyable image prompt, optional pasted image link. Uploads go to the shared asset galleries. */
-export function ImageSlot({ item, onChange, aspect = "aspect-[4/3]" }: { item: ImageItem; onChange: (v: ImageItem) => void; aspect?: string }) {
+export function ImageSlot({ item, onChange, aspect = "aspect-[4/3]", onView }: { item: ImageItem; onChange: (v: ImageItem) => void; aspect?: string; onView?: () => void }) {
   const [url, setUrl] = useState("");
   const [err, setErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const img = <img src={item.url} alt={item.caption || "Uploaded visual"} className="h-full w-full object-cover" />;
   return (
     <div className="rounded-lg border border-border bg-background p-3">
       <div className={cn("relative mb-3 overflow-hidden rounded-md border border-dashed border-border-strong bg-elevated/50", aspect)}>
         {item.url ? (
-          <img src={item.url} alt={item.caption || "Uploaded visual"} className="h-full w-full object-cover" />
+          onView ? (
+            <button type="button" onClick={onView} aria-label="View full size" className="block h-full w-full cursor-zoom-in">
+              {img}
+            </button>
+          ) : img
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1 p-3 text-center text-xs text-muted-foreground">
             <ImagePlus className="size-5" />
