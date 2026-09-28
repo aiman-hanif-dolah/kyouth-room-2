@@ -214,7 +214,7 @@ export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section 
             </Button>
           )}
           <input ref={ref} type="file" multiple accept={IMAGE_ACCEPT} className="hidden" data-testid={`slot-upload-${slot}`} onChange={(e) => { send(e.target.files); e.target.value = ""; }} />
-          {rejected.length > 0 && <p className="mt-1 text-[11px] text-destructive">Only images go here: {rejected.join(", ")} skipped.</p>}
+          {rejected.length > 0 && <p className="w-full text-[11px] text-destructive">Only images go here: {rejected.join(", ")} skipped.</p>}
         </div>
       ) : (
         <p className="mt-2 text-[11px] text-muted-foreground">Switch to Edit mode (passcode) to upload an image directly.</p>
