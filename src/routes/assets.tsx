@@ -24,12 +24,12 @@ function AssetsPage() {
   const { assets, ready, signedIn } = useAssets();
   const [section, setSection] = useState<SectionId>("s1");
   const [filter, setFilter] = useState<"all" | SectionId>("all");
-  const [kind, setKind] = useState<"all" | "image" | "document">("all");
+  const [kind, setKind] = useState<"all" | "image" | "document" | "video" | "audio">("all");
   const list = assets.filter((a) => (filter === "all" || a.section_id === filter) && (kind === "all" || a.kind === kind));
   const sel = "rounded-md border border-input bg-background px-2 py-1.5 text-sm";
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:px-8">
-      <PageHeader eyebrow="Shared files" title="Project assets" description="Upload images and supporting files for any of the eight tasks. Everyone signed in sees the same files. Images marked for the presentation appear in that part of the deck automatically." />
+      <PageHeader eyebrow="Shared files" title="Project assets" description="Upload images, documents, video and audio for any of the eight tasks. Everyone signed in sees the same files. Images marked for the presentation appear in that part of the deck automatically." />
       <Card className="mt-6" title="Upload" subtitle="Choose which task the files belong to, then drop or pick as many files as you need.">
         <label className="mb-3 flex items-center gap-2 text-sm">
           Task
@@ -48,7 +48,7 @@ function AssetsPage() {
               {SECTIONS.map((s) => <option key={s.id} value={s.id}>Hour {s.hour}</option>)}
             </select>
             <select aria-label="Filter type" className={sel} value={kind} onChange={(e) => setKind(e.target.value as any)}>
-              <option value="all">All types</option><option value="image">Images</option><option value="document">Documents</option>
+              <option value="all">All types</option><option value="image">Images</option><option value="document">Documents</option><option value="video">Video</option><option value="audio">Audio</option>
             </select>
           </div>
         }>

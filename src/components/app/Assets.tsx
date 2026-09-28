@@ -9,10 +9,12 @@ import { cn } from "@/lib/utils";
 
 const inputCls = "w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 
+const KIND_LABEL: Record<string, string> = { image: "Image", document: "Document", video: "Video", audio: "Audio" };
+
 export function StorageNote() {
   return (
     <p className="text-[11px] leading-relaxed text-muted-foreground">
-      No limit on how many files you add. Each file can be up to {MAX_FILE_MB} MB, and the whole project shares the storage allowance of this workspace's cloud plan, so very large or many files can eventually hit that allowance.
+      No limit on how many files you add. Supported: images (PNG, JPG, WEBP, GIF, SVG), documents (PDF, Word, PowerPoint), video (MP4, WEBM, MOV, M4V) and audio (MP3, WAV, M4A, AAC). Each file can be up to {MAX_FILE_MB} MB (compress longer videos), and the whole project shares the storage allowance of this workspace's cloud plan, so very large or many files can eventually hit that allowance.
     </p>
   );
 }
@@ -48,7 +50,7 @@ export function Dropzone({ slot, section, imagesOnly, label }: { slot: string; s
       >
         <UploadCloud className="size-5" />
         <span className="text-foreground">{label ?? "Drop files here or click to choose"}</span>
-        <span>{imagesOnly ? "PNG, JPG, WEBP, GIF, SVG" : "Images, PDF, Word, PowerPoint"} · select as many as you need · up to {MAX_FILE_MB} MB each</span>
+        <span>{imagesOnly ? "PNG, JPG, WEBP, GIF, SVG" : "Images, documents, video, audio"} · select as many as you need · up to {MAX_FILE_MB} MB each</span>
       </div>
       <input ref={ref} type="file" multiple accept={imagesOnly ? IMAGE_ACCEPT : ACCEPT} className="hidden" data-testid={`upload-${slot}`} onChange={(e) => { send(e.target.files); e.target.value = ""; }} />
       {mine.length > 0 && (
@@ -73,6 +75,12 @@ function Thumb({ a, url, className }: { a: Asset; url?: string; className?: stri
   if (a.kind === "image" && url) {
     const ratio = a.width && a.height ? `${a.width} / ${a.height}` : "4 / 3";
     return <div className={cn("flex items-center justify-center overflow-hidden rounded-md bg-elevated/50", className)}><img src={url} alt={a.alt_text || a.caption || a.file_name} style={{ aspectRatio: ratio }} className="max-h-56 w-full object-contain" /></div>;
+  }
+  if (a.kind === "video" && url) {
+    return <div className={cn("overflow-hidden rounded-md bg-elevated/50", className)}><video src={url} controls preload="metadata" playsInline className="max-h-56 w-full" aria-label={a.caption || a.file_name}>Your browser cannot play this video. Use Download.</video></div>;
+  }
+  if (a.kind === "audio" && url) {
+    return <div className={cn("flex h-28 flex-col justify-center gap-2 rounded-md bg-elevated/50 p-2", className)}><span className="font-mono text-[11px] uppercase text-muted-foreground">{fileExt(a.file_name)} audio</span><audio src={url} controls preload="metadata" className="w-full" aria-label={a.caption || a.file_name}>Your browser cannot play this audio. Use Download.</audio></div>;
   }
   return (
     <div className={cn("flex h-28 flex-col items-center justify-center gap-1 rounded-md bg-elevated/50 text-muted-foreground", className)}>
@@ -103,7 +111,7 @@ export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset;
         <span className="shrink-0 text-muted-foreground">{fmtSize(a.size_bytes)}</span>
       </div>
       <div className="flex flex-wrap gap-1">
-        <Badge tone={a.kind === "image" ? "brand" : "neutral"}>{a.kind === "image" ? "Image" : "Document"}</Badge>
+        <Badge tone={a.kind === "image" ? "brand" : "neutral"}>{KIND_LABEL[a.kind] ?? "Document"}</Badge>
         {showSection && <Badge>{SLOT_LABEL(a.slot)}</Badge>}
       </div>
       <BlurInput label="Caption" value={a.caption} onSave={(v) => updateAsset(a.id, { caption: v })} />
@@ -114,6 +122,7 @@ export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset;
           {SECTIONS.map((s) => <option key={s.id} value={s.id}>Hour {s.hour}: {s.title}</option>)}
         </select>
       )}
+      {(a.kind === "video" || a.kind === "audio") && <p className="text-[11px] text-muted-foreground">Not embedded in slides. Play it from here or download it during the presentation.</p>}
       {a.kind === "image" && (
         <label className="flex items-center gap-2 text-[11px] text-subtle">
           <input type="checkbox" checked={a.in_presentation} onChange={(e) => updateAsset(a.id, { in_presentation: e.target.checked })} /> Show in presentation

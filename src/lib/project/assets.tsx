@@ -12,7 +12,7 @@ export interface Asset {
   file_name: string;
   mime_type: string;
   size_bytes: number;
-  kind: "image" | "document";
+  kind: "image" | "document" | "video" | "audio";
   width: number | null;
   height: number | null;
   section_id: SectionId;
@@ -44,7 +44,15 @@ const DOC_EXT: Record<string, string> = {
   ppt: "application/vnd.ms-powerpoint",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 };
-export const ACCEPT = [...Object.keys(IMAGE_EXT), ...Object.keys(DOC_EXT)].map((e) => "." + e).join(",");
+const VIDEO_EXT: Record<string, string> = { mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime", m4v: "video/x-m4v" };
+const AUDIO_EXT: Record<string, string> = { mp3: "audio/mpeg", wav: "audio/wav", m4a: "audio/mp4", aac: "audio/aac" };
+/** Browser-reported MIME types we accept per extension (empty type is allowed, many OSes omit it). */
+const MIME_OK: Record<string, string[]> = {
+  mp4: ["video/mp4"], webm: ["video/webm", "audio/webm"], mov: ["video/quicktime"], m4v: ["video/x-m4v", "video/mp4"],
+  mp3: ["audio/mpeg", "audio/mp3"], wav: ["audio/wav", "audio/x-wav", "audio/wave", "audio/vnd.wave"], m4a: ["audio/mp4", "audio/x-m4a", "audio/m4a"], aac: ["audio/aac", "audio/x-aac", "audio/aacp"],
+};
+const kindOf = (e: string): Asset["kind"] => (IMAGE_EXT[e] ? "image" : VIDEO_EXT[e] ? "video" : AUDIO_EXT[e] ? "audio" : "document");
+export const ACCEPT = [...Object.keys(IMAGE_EXT), ...Object.keys(DOC_EXT), ...Object.keys(VIDEO_EXT), ...Object.keys(AUDIO_EXT)].map((e) => "." + e).join(",");
 export const IMAGE_ACCEPT = Object.keys(IMAGE_EXT).map((e) => "." + e).join(",");
 
 export const SLOT_SECTION: Record<string, SectionId> = { "company.logo": "s1", "company.moodboard": "s1", "product.mockups": "s4", "marketing.visuals": "s6" };
@@ -58,7 +66,8 @@ const ext = (name: string) => name.split(".").pop()?.toLowerCase() ?? "";
 /** Returns an error message, or "" if the file is acceptable. */
 async function validate(file: File): Promise<string> {
   const e = ext(file.name);
-  if (!IMAGE_EXT[e] && !DOC_EXT[e]) return `${file.name}: file type .${e || "?"} is not supported. Use PNG, JPG, WEBP, GIF, SVG, PDF, DOC/DOCX or PPT/PPTX.`;
+  if (!IMAGE_EXT[e] && !DOC_EXT[e] && !VIDEO_EXT[e] && !AUDIO_EXT[e]) return `${file.name}: file type .${e || "?"} is not supported. Use PNG, JPG, WEBP, GIF, SVG, PDF, DOC/DOCX, PPT/PPTX, MP4, WEBM, MOV, M4V, MP3, WAV, M4A or AAC.`;
+  if (MIME_OK[e] && file.type && !MIME_OK[e].includes(file.type)) return `${file.name}: the file says it is ${file.type}, which does not match .${e}. Re-export it and try again.`;
   if (file.size > MAX_FILE_MB * 1024 * 1024) return `${file.name}: ${(file.size / 1048576).toFixed(1)} MB is over the ${MAX_FILE_MB} MB per-file limit.`;
   if (file.size === 0) return `${file.name}: file is empty.`;
   if (e === "svg") {
@@ -163,14 +172,14 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
 
   const sendFile = async (file: File, jobId: string) => {
     const e = ext(file.name);
-    const type = IMAGE_EXT[e] ?? DOC_EXT[e] ?? file.type;
+    const type = IMAGE_EXT[e] ?? DOC_EXT[e] ?? VIDEO_EXT[e] ?? AUDIO_EXT[e] ?? file.type;
     const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-80);
     const path = `${crypto.randomUUID()}-${safe}`;
     const { data, error: se } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path);
     if (se || !data) throw new Error(se?.message ?? "Could not start upload");
     await putWithProgress(data.signedUrl, file, type, (p) => setJob(jobId, { progress: p }));
     const dims = IMAGE_EXT[e] ? await imageSize(file) : null;
-    return { path, type, kind: (IMAGE_EXT[e] ? "image" : "document") as Asset["kind"], dims };
+    return { path, type, kind: kindOf(e), dims };
   };
 
   const upload: Ctx["upload"] = async (files, { slot, section, memberId }) => {
