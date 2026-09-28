@@ -273,11 +273,6 @@ export function ImageSlot({ item, onChange, onDelete, aspect = "aspect-[4/3]" }:
             Clear
           </Button>
         )}
-        {onDelete && (
-          <Button size="sm" variant="danger" onClick={onDelete} aria-label="Delete visual">
-            <Trash2 className="size-3.5" />
-          </Button>
-        )}
       </div>
       <div className="mt-2 flex gap-1.5">
         <input aria-label="Image URL" placeholder="https://… image link" value={url} onChange={(e) => setUrl(e.target.value)} className={cn(inputCls, "h-8 py-1 text-xs")} />
