@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Download, ExternalLink, Link2, Plus, Star, Trash2 } from "lucide-react";
 import { useProject, uid } from "@/lib/project/store";
-import { AssetGallery, StorageNote } from "@/components/app/Assets";
+import { AssetGallery, SlotImageSlot, StorageNote } from "@/components/app/Assets";
 import { Area, Badge, Button, Card, CopyButton, Field, Fictional, newImage, PageHeader, RowControls, StringList, move, AiNotConnected } from "@/components/app/kit";
 import { Lightbox } from "@/components/app/Lightbox";
 import { SectionTaskPanel } from "@/components/app/SectionTask";
@@ -187,34 +187,38 @@ function CompanyPage() {
         </Card>
       </div>
 
-      <Card className="mt-4" title="5. Logo" subtitle="Upload logo files, paste a link, or copy the prompt into your image tool. Image generation is not connected here.">
+      <Card className="mt-4" title="5. Logo" subtitle="Click the frame to upload your logo file, or copy the prompt into your image tool.">
         <div className="space-y-3">
-          <PromptBox label="Prompt for your image tool" value={c.logo.prompt} onChange={(v) => u1((d) => { d.logo.prompt = v; })} />
-          <LinkInput onAdd={(url) => u1((d) => { d.logo.url = url; })} />
-          {/^https?:\/\//.test(c.logo.url) && (
-            <div className="max-w-xs">
-              <LinkedImage item={c.logo} onChange={(v) => u1((d) => { d.logo = v; })} onClear={() => u1((d) => { d.logo.url = ""; })} />
-            </div>
-          )}
-          <AssetGallery slot="company.logo" section="s1" imagesOnly title="Logo files" />
+          <div className="max-w-md">
+            <SlotImageSlot
+              item={c.logo}
+              slot="company.logo"
+              section="s1"
+              aspect="aspect-video max-h-56"
+              onChange={(v) => u1((d) => { d.logo = v; })}
+            />
+          </div>
+          <AssetGallery slot="company.logo" section="s1" imagesOnly title="Logo library & alternate versions" />
           <StorageNote />
         </div>
       </Card>
 
-      <Card className="mt-4" title="6. Mood board" subtitle="Upload mood board images, paste links, or copy a prompt into your image tool." action={<Button size="sm" onClick={() => u1((d) => { d.moodboard.push(newImage()); })}><Plus className="size-3.5" /> Prompt</Button>}>
-        <div className="space-y-3">
-          {c.moodboard.map((m, i) => (
-            <div key={m.id} className="space-y-2">
-              <PromptBox label={`Prompt ${i + 1} for your image tool`} value={m.prompt} onChange={(v) => u1((d) => { d.moodboard[i].prompt = v; })} onDelete={() => u1((d) => { d.moodboard.splice(i, 1); })} />
-              {/^https?:\/\//.test(m.url) && (
-                <div className="max-w-xs">
-                  <LinkedImage item={m} onChange={(v) => u1((d) => { d.moodboard[i] = v; })} onClear={() => u1((d) => { d.moodboard[i].url = ""; })} />
-                </div>
-              )}
-            </div>
-          ))}
-          <LinkInput onAdd={(url) => u1((d) => { d.moodboard.push({ ...newImage(), url }); })} />
-          <AssetGallery slot="company.moodboard" section="s1" imagesOnly title="Mood board uploads" />
+      <Card className="mt-4" title="6. Mood board" subtitle="Click any frame to upload mood board visuals, or add prompts for your image tool." action={<Button size="sm" onClick={() => u1((d) => { d.moodboard.push(newImage()); })}><Plus className="size-3.5" /> Add card</Button>}>
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {c.moodboard.map((m, i) => (
+              <SlotImageSlot
+                key={m.id}
+                item={m}
+                slot="company.moodboard"
+                section="s1"
+                aspect="aspect-[4/3]"
+                onChange={(v) => u1((d) => { d.moodboard[i] = v; })}
+                onDelete={() => u1((d) => { d.moodboard.splice(i, 1); })}
+              />
+            ))}
+          </div>
+          <AssetGallery slot="company.moodboard" section="s1" imagesOnly title="Mood board gallery" />
         </div>
       </Card>
 

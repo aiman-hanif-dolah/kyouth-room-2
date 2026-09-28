@@ -88,11 +88,11 @@ export function Dropzone({ slot, section, imagesOnly, label }: { slot: string; s
   );
 }
 
-function Thumb({ a, url, className, onClick }: { a: Asset; url?: string; className?: string; onClick?: () => void }) {
+function Thumb({ a, url, className, onClick, onReplace, canEdit }: { a: Asset; url?: string; className?: string; onClick?: () => void; onReplace?: () => void; canEdit?: boolean }) {
   if (a.kind === "image" && url) {
     const ratio = a.width && a.height ? `${a.width} / ${a.height}` : "4 / 3";
     return (
-      <div className={cn("flex items-center justify-center overflow-hidden rounded-md bg-elevated/50", className)}>
+      <div className={cn("group relative flex items-center justify-center overflow-hidden rounded-md bg-elevated/50", className)}>
         {onClick ? (
           <button type="button" onClick={onClick} aria-label="View full size" className="block w-full cursor-zoom-in">
             <img src={url} alt={a.alt_text || a.caption || a.file_name} style={{ aspectRatio: ratio }} className="max-h-56 w-full object-contain" />
@@ -100,6 +100,32 @@ function Thumb({ a, url, className, onClick }: { a: Asset; url?: string; classNa
         ) : (
           <img src={url} alt={a.alt_text || a.caption || a.file_name} style={{ aspectRatio: ratio }} className="max-h-56 w-full object-contain" />
         )}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1.5 bg-black/40 opacity-0 backdrop-blur-[1px] transition-opacity group-hover:opacity-100">
+          {canEdit && onReplace && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReplace();
+              }}
+              className="pointer-events-auto inline-flex items-center gap-1 rounded bg-background/90 px-2 py-1 text-[11px] font-medium text-foreground shadow-sm hover:bg-background"
+            >
+              <RefreshCw className="size-3" /> Replace
+            </button>
+          )}
+          {onClick && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick();
+              }}
+              className="pointer-events-auto inline-flex items-center gap-1 rounded bg-background/90 px-2 py-1 text-[11px] font-medium text-foreground shadow-sm hover:bg-background"
+            >
+              Zoom
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -159,7 +185,13 @@ export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset;
   };
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-2.5" data-testid="asset-card">
-      <Thumb a={a} url={url} {...(a.kind === "image" && url ? { onClick: openPreview } : {})} />
+      <Thumb
+        a={a}
+        url={url}
+        {...(a.kind === "image" && url ? { onClick: openPreview } : {})}
+        onReplace={() => rep.current?.click()}
+        canEdit={canEdit}
+      />
       <div className="flex items-center gap-1.5 text-[11px]">
         <span className="min-w-0 flex-1 truncate text-foreground" title={a.file_name}>{a.file_name}</span>
         <span className="shrink-0 text-muted-foreground">{fmtSize(a.size_bytes)}</span>
