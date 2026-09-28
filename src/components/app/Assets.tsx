@@ -125,7 +125,7 @@ function BlurInput({ value, onSave, label, placeholder }: { value: string; onSav
 }
 
 export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset; list: Asset[]; index: number; showSection?: boolean; vertical?: boolean }) {
-  const { urls, updateAsset, removeAsset, replaceAsset, moveAsset } = useAssets();
+  const { urls, updateAsset, removeAsset, replaceAsset, moveAsset, canEdit } = useAssets();
   const [confirm, setConfirm] = useState(false);
   const [view, setView] = useState<number | null>(null);
   const [suggesting, setSuggesting] = useState(false);

@@ -112,7 +112,7 @@ export async function generateAssetMeta(opts: {
         if (!payload || payload === "[DONE]") continue;
         let ev: Record<string, unknown>;
         try { ev = JSON.parse(payload); } catch { continue; }
-        const type = String(ev.type ?? "");
+        const type = String(ev["type"] ?? "");
         if (type === "response.output_text.delta" && typeof ev["delta"] === "string") text += ev["delta"];
         else if (type === "response.failed") fail = String((ev["response"] as { error?: { message?: string } } | undefined)?.error?.message ?? "The AI request failed.");
         else if (type === "error" || type === "response.error") fail = String(ev["message"] ?? "The AI request failed.");
