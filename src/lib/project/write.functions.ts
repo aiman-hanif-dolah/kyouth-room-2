@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireEdit } from "./gate.functions";
+import { requireEdit } from "../gate.functions";
+import type { Database } from "@/integrations/supabase/types";
 
 const BUCKET = "project-assets";
 
