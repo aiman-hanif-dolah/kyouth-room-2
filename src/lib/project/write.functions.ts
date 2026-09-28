@@ -90,7 +90,9 @@ export const updateAssetMeta = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
     for (const k of META_FIELDS) if (k in data.patch) patch[k] = data.patch[k];
-    const { error } = await supabaseAdmin.from("project_assets").update(patch).eq("id", data.id);
+    const update: Database["public"]["Tables"]["project_assets"]["Update"] = {};
+    for (const k of META_FIELDS) if (k in data.patch) (update as Record<string, unknown>)[k] = data.patch[k];
+    const { error } = await supabaseAdmin.from("project_assets").update(update).eq("id", data.id);
     if (error) throw new Error(error.message);
     if (data.removePath) await supabaseAdmin.storage.from(BUCKET).remove([data.removePath]);
     return { ok: true as const };
