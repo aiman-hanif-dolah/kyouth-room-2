@@ -4,6 +4,7 @@ import { ACCEPT, IMAGE_ACCEPT, MAX_FILE_MB, SLOT_LABEL, fileExt, fmtSize, isImag
 import { SECTIONS } from "@/lib/project/sections";
 import type { SectionId } from "@/lib/project/types";
 import { Badge, Button, ImageSlot } from "./kit";
+import { Lightbox, type LightboxItem } from "./Lightbox";
 import { cn } from "@/lib/utils";
 
 const inputCls = "w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
@@ -86,10 +87,20 @@ export function Dropzone({ slot, section, imagesOnly, label }: { slot: string; s
   );
 }
 
-function Thumb({ a, url, className }: { a: Asset; url?: string; className?: string }) {
+function Thumb({ a, url, className, onClick }: { a: Asset; url?: string; className?: string; onClick?: () => void }) {
   if (a.kind === "image" && url) {
     const ratio = a.width && a.height ? `${a.width} / ${a.height}` : "4 / 3";
-    return <div className={cn("flex items-center justify-center overflow-hidden rounded-md bg-elevated/50", className)}><img src={url} alt={a.alt_text || a.caption || a.file_name} style={{ aspectRatio: ratio }} className="max-h-56 w-full object-contain" /></div>;
+    return (
+      <div className={cn("flex items-center justify-center overflow-hidden rounded-md bg-elevated/50", className)}>
+        {onClick ? (
+          <button type="button" onClick={onClick} aria-label="View full size" className="block w-full cursor-zoom-in">
+            <img src={url} alt={a.alt_text || a.caption || a.file_name} style={{ aspectRatio: ratio }} className="max-h-56 w-full object-contain" />
+          </button>
+        ) : (
+          <img src={url} alt={a.alt_text || a.caption || a.file_name} style={{ aspectRatio: ratio }} className="max-h-56 w-full object-contain" />
+        )}
+      </div>
+    );
   }
   if (a.kind === "video" && url) {
     return <div className={cn("overflow-hidden rounded-md bg-elevated/50", className)}><video src={url} controls preload="metadata" playsInline className="max-h-56 w-full" aria-label={a.caption || a.file_name}>Your browser cannot play this video. Use Download.</video></div>;
