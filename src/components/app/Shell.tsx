@@ -142,19 +142,6 @@ export function Shell({ children }: { children: ReactNode }) {
       <div className="mt-auto space-y-3 rounded-lg border border-border p-3 text-[11px] leading-relaxed text-muted-foreground">
         {modeToggle}
         <p className={sync === "error" ? "text-destructive" : undefined}>{syncText}</p>
-        {canEdit && (confirm ? (
-          <div className="space-y-2">
-            <p className="text-destructive">Erase all edits and restore starter content?</p>
-            <div className="flex gap-1.5">
-              <Button size="sm" variant="danger" className="border border-destructive/40" onClick={() => { reset(); setConfirm(false); }}>Yes, reset</Button>
-              <Button size="sm" onClick={() => setConfirm(false)}>Cancel</Button>
-            </div>
-          </div>
-        ) : (
-          <Button size="sm" variant="ghost" className="-ml-2" onClick={() => setConfirm(true)}>
-            <RotateCcw className="size-3.5" /> Reset to demo data
-          </Button>
-        ))}
       </div>
     </div>
   );
