@@ -1,4 +1,5 @@
-import { createServerFn, getRequest, setResponseHeader } from "@tanstack/react-start";
+import { createServerFn } from "@tanstack/react-start";
+import { getRequest, setResponseHeader } from "@tanstack/start-server-core";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 // The passcode never ships to the browser: it is compared here, server-side,
