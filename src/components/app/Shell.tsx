@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 // backspace; the typed sequence is compared server-side like the text code.
 const EMOJI_KEYS = ["😎", "🔥", "🚀", "🌙", "⭐", "🍌", "🎨", "💡", "🐝", "🌺", "🏆", "❤️"];
 import { Link } from "@tanstack/react-router";
-import { Briefcase, Building2, ClipboardCheck, LayoutDashboard, Megaphone, Menu, MonitorPlay, Package, Sparkles, Users, X, FolderOpen, Lock, PencilLine } from "lucide-react";
+import { Briefcase, Building2, ClipboardCheck, LayoutDashboard, Megaphone, Menu, MonitorPlay, Package, Sparkles, Users, X, FolderOpen, Lock, PencilLine, FlaskConical, ArrowUpRight } from "lucide-react";
 import { useProject } from "@/lib/project/store";
 import { useEditMode } from "@/lib/project/editmode";
 import { Button } from "./kit";
@@ -113,6 +113,10 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const nav = (
     <nav className="flex flex-col gap-0.5" aria-label="Main">
+      <Link to="/batik-lab" onClick={() => setOpen(false)} className="mb-4 flex items-center gap-3 rounded-xl border border-[#a89ce6]/30 bg-gradient-to-br from-[#393056] to-[#211e36] px-3 py-4 text-[#fff1dd] shadow-lg transition-colors hover:border-[#e7a280]" activeProps={{ className: "ring-2 ring-[#e7a280]/60" }}>
+        <span className="grid size-9 shrink-0 rotate-[-8deg] place-items-center rounded-lg bg-[#e79676] text-[#29233e]"><FlaskConical className="size-5" /></span>
+        <span className="flex-1"><strong className="block text-sm">Batik Lab</strong><span className="text-[10px] text-[#d4bfdc]">Create something yours</span></span><ArrowUpRight className="size-4 text-[#e7a280]" />
+      </Link>
       {NAV.map(({ to, label, icon: Icon }) => (
         <Link
           key={to}
@@ -172,3 +176,4 @@ export function Shell({ children }: { children: ReactNode }) {
     </div>
   );
 }
+

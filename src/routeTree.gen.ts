@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AssetsRouteImport } from './routes/assets'
+import { Route as BatikLabRouteImport } from './routes/batik-lab'
 import { Route as BusinessRouteImport } from './routes/business'
 import { Route as CompanyRouteImport } from './routes/company'
 import { Route as CustomersRouteImport } from './routes/customers'
@@ -28,6 +29,11 @@ const IndexRoute = IndexRouteImport.update({
 const AssetsRoute = AssetsRouteImport.update({
   id: '/assets',
   path: '/assets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BatikLabRoute = BatikLabRouteImport.update({
+  id: '/batik-lab',
+  path: '/batik-lab',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BusinessRoute = BusinessRouteImport.update({
@@ -74,6 +80,7 @@ const ReviewRoute = ReviewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
+  '/batik-lab': typeof BatikLabRoute
   '/business': typeof BusinessRoute
   '/company': typeof CompanyRoute
   '/customers': typeof CustomersRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
+  '/batik-lab': typeof BatikLabRoute
   '/business': typeof BusinessRoute
   '/company': typeof CompanyRoute
   '/customers': typeof CustomersRoute
@@ -99,6 +107,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
+  '/batik-lab': typeof BatikLabRoute
   '/business': typeof BusinessRoute
   '/company': typeof CompanyRoute
   '/customers': typeof CustomersRoute
@@ -113,6 +122,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/assets'
+    | '/batik-lab'
     | '/business'
     | '/company'
     | '/customers'
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/assets'
+    | '/batik-lab'
     | '/business'
     | '/company'
     | '/customers'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/assets'
+    | '/batik-lab'
     | '/business'
     | '/company'
     | '/customers'
@@ -150,6 +162,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssetsRoute: typeof AssetsRoute
+  BatikLabRoute: typeof BatikLabRoute
   BusinessRoute: typeof BusinessRoute
   CompanyRoute: typeof CompanyRoute
   CustomersRoute: typeof CustomersRoute
@@ -174,6 +187,13 @@ declare module '@tanstack/react-router' {
       path: '/assets'
       fullPath: '/assets'
       preLoaderRoute: typeof AssetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/batik-lab': {
+      id: '/batik-lab'
+      path: '/batik-lab'
+      fullPath: '/batik-lab'
+      preLoaderRoute: typeof BatikLabRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/business': {
@@ -238,6 +258,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssetsRoute: AssetsRoute,
+  BatikLabRoute: BatikLabRoute,
   BusinessRoute: BusinessRoute,
   CompanyRoute: CompanyRoute,
   CustomersRoute: CustomersRoute,
