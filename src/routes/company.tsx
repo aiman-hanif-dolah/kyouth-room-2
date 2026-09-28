@@ -129,7 +129,7 @@ function CompanyPage() {
         </Card>
       </div>
 
-      <Card className="mt-4" title="5. Logo and mood board" subtitle="Image generation is not connected here. Copy the prompt into your image tool, then upload the results below (as many as you like) or paste a link.">
+      <Card className="mt-4" title="5. Logo and mood board" subtitle="Image generation is not connected here. Upload your images directly on each card (they also land in the galleries below), or copy the prompt into your image tool and paste a link.">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div>
             <p className="mb-1.5 text-xs font-medium text-muted-foreground">Logo</p>
