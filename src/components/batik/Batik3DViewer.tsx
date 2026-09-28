@@ -91,7 +91,7 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
         // Tote bag body (flat rectangular soft cuboid)
         const bagGeo = new THREE.BoxGeometry(2.4, 2.7, 0.4, 16, 16, 4);
         // Slightly curve the vertices for organic fabric look
-        const pos = bagGeo.attributes.position;
+        const pos = bagGeo.getAttribute("position");
         for (let i = 0; i < pos.count; i++) {
           const y = pos.getY(i);
           const z = pos.getZ(i);
@@ -134,7 +134,7 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
       case "cushion": {
         // Pillow / Cushion: puffed box with softened curved edges
         const cushionGeo = new THREE.BoxGeometry(2.6, 2.6, 0.9, 24, 24, 12);
-        const pos = cushionGeo.attributes.position;
+        const pos = cushionGeo.getAttribute("position");
         for (let i = 0; i < pos.count; i++) {
           const x = pos.getX(i);
           const y = pos.getY(i);
@@ -180,9 +180,9 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
 
         // Collar ring / neck
         const collarGeo = new THREE.TorusGeometry(0.42, 0.08, 16, 32);
-        collarGeo.rotation.x = Math.PI / 2;
-        collarGeo.position.y = 1.15;
         const collar = new THREE.Mesh(collarGeo, darkAccentMat);
+        collar.rotation.x = Math.PI / 2;
+        collar.position.y = 1.15;
         group.add(collar);
 
         // If kurung/kebaya: add longer skirt/flair
@@ -202,7 +202,7 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
       case "scarf": {
         // Flowing draped scarf curve
         const scarfGeo = new THREE.PlaneGeometry(2.4, 3.2, 32, 32);
-        const pos = scarfGeo.attributes.position;
+        const pos = scarfGeo.getAttribute("position");
         for (let i = 0; i < pos.count; i++) {
           const x = pos.getX(i);
           const y = pos.getY(i);
@@ -227,7 +227,7 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
       case "fabric": {
         // Cylindrical fabric wrap drape or roll
         const cylGeo = new THREE.CylinderGeometry(1.1, 1.25, 3.0, 36, 16, true);
-        const pos = cylGeo.attributes.position;
+        const pos = cylGeo.getAttribute("position");
         for (let i = 0; i < pos.count; i++) {
           const theta = Math.atan2(pos.getZ(i), pos.getX(i));
           const wave = Math.sin(theta * 8) * 0.05;
@@ -246,9 +246,9 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
 
         // Top tied rim
         const rimGeo = new THREE.TorusGeometry(1.15, 0.09, 16, 32);
-        rimGeo.rotation.x = Math.PI / 2;
-        rimGeo.position.y = 1.45;
         const rim = new THREE.Mesh(rimGeo, darkAccentMat);
+        rim.rotation.x = Math.PI / 2;
+        rim.position.y = 1.45;
         group.add(rim);
         break;
       }
@@ -278,7 +278,7 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
       case "pouch": {
         // Compact cosmetic pouch with zipper
         const pouchGeo = new THREE.BoxGeometry(2.5, 1.5, 0.8, 16, 12, 10);
-        const pos = pouchGeo.attributes.position;
+        const pos = pouchGeo.getAttribute("position");
         for (let i = 0; i < pos.count; i++) {
           const y = pos.getY(i);
           if (y > 0) {
@@ -375,10 +375,10 @@ export function Batik3DViewer({ design, className = "" }: Batik3DViewerProps) {
 
     // Pedestal shadow receiver disc
     const floorGeo = new THREE.CircleGeometry(2.6, 48);
-    floorGeo.rotation.x = -Math.PI / 2;
-    floorGeo.position.y = -1.9;
     const floorMat = new THREE.ShadowMaterial({ opacity: 0.22 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.9;
     floor.receiveShadow = true;
     scene.add(floor);
 
