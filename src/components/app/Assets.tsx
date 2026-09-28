@@ -1,9 +1,11 @@
 import { useRef, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Download, ExternalLink, FileText, RefreshCw, Trash2, UploadCloud, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Download, ExternalLink, FileText, RefreshCw, Sparkles, Trash2, UploadCloud, X } from "lucide-react";
+import { suggestAssetMeta } from "@/lib/project/ai.functions";
 import { ACCEPT, IMAGE_ACCEPT, MAX_FILE_MB, SLOT_LABEL, fileExt, fmtSize, isImageName, useAssets, type Asset } from "@/lib/project/assets";
 import { SECTIONS } from "@/lib/project/sections";
 import type { SectionId } from "@/lib/project/types";
 import { Badge, Button, ImageSlot } from "./kit";
+import { Lightbox, type LightboxItem } from "./Lightbox";
 import { cn } from "@/lib/utils";
 
 const inputCls = "w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
@@ -86,10 +88,20 @@ export function Dropzone({ slot, section, imagesOnly, label }: { slot: string; s
   );
 }
 
-function Thumb({ a, url, className }: { a: Asset; url?: string; className?: string }) {
+function Thumb({ a, url, className, onClick }: { a: Asset; url?: string; className?: string; onClick?: () => void }) {
   if (a.kind === "image" && url) {
     const ratio = a.width && a.height ? `${a.width} / ${a.height}` : "4 / 3";
-    return <div className={cn("flex items-center justify-center overflow-hidden rounded-md bg-elevated/50", className)}><img src={url} alt={a.alt_text || a.caption || a.file_name} style={{ aspectRatio: ratio }} className="max-h-56 w-full object-contain" /></div>;
+    return (
+      <div className={cn("flex items-center justify-center overflow-hidden rounded-md bg-elevated/50", className)}>
+        {onClick ? (
+          <button type="button" onClick={onClick} aria-label="View full size" className="block w-full cursor-zoom-in">
+            <img src={url} alt={a.alt_text || a.caption || a.file_name} style={{ aspectRatio: ratio }} className="max-h-56 w-full object-contain" />
+          </button>
+        ) : (
+          <img src={url} alt={a.alt_text || a.caption || a.file_name} style={{ aspectRatio: ratio }} className="max-h-56 w-full object-contain" />
+        )}
+      </div>
+    );
   }
   if (a.kind === "video" && url) {
     return <div className={cn("overflow-hidden rounded-md bg-elevated/50", className)}><video src={url} controls preload="metadata" playsInline className="max-h-56 w-full" aria-label={a.caption || a.file_name}>Your browser cannot play this video. Use Download.</video></div>;
@@ -113,22 +125,69 @@ function BlurInput({ value, onSave, label, placeholder }: { value: string; onSav
 }
 
 export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset; list: Asset[]; index: number; showSection?: boolean; vertical?: boolean }) {
-  const { urls, updateAsset, removeAsset, replaceAsset, moveAsset } = useAssets();
+  const { urls, updateAsset, removeAsset, replaceAsset, moveAsset, canEdit, chooseMainLogo } = useAssets();
   const [confirm, setConfirm] = useState(false);
+  const [view, setView] = useState<number | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [aiError, setAiError] = useState("");
   const rep = useRef<HTMLInputElement>(null);
   const url = urls[a.id];
   const Prev = vertical ? ArrowUp : ArrowLeft, Next = vertical ? ArrowDown : ArrowRight;
+  const suggest = async () => {
+    setSuggesting(true);
+    setAiError("");
+    try {
+      const r = await suggestAssetMeta({ data: { storagePath: a.storage_path, fileName: a.file_name, slotLabel: SLOT_LABEL(a.slot) } });
+      const patch: Partial<Asset> = { tags: r.tags };
+      if (r.caption) patch.caption = r.caption;
+      if (r.altText && a.kind === "image") patch.alt_text = r.altText;
+      await updateAsset(a.id, patch);
+    } catch (e) {
+      setAiError((e as Error).message);
+    } finally {
+      setSuggesting(false);
+    }
+  };
+  // Every image in this gallery becomes a slide of the full-screen preview.
+  const images: LightboxItem[] = list
+    .filter((x) => x.kind === "image" && urls[x.id])
+    .map((x) => ({ src: urls[x.id], alt: x.alt_text || x.caption || x.file_name, title: x.file_name }));
+  const openPreview = () => {
+    if (!url || a.kind !== "image") return;
+    const i = images.findIndex((im) => im.src === url);
+    if (i >= 0) setView(i);
+  };
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-2.5" data-testid="asset-card">
-      <Thumb a={a} url={url} />
+      <Thumb a={a} url={url} {...(a.kind === "image" && url ? { onClick: openPreview } : {})} />
       <div className="flex items-center gap-1.5 text-[11px]">
         <span className="min-w-0 flex-1 truncate text-foreground" title={a.file_name}>{a.file_name}</span>
         <span className="shrink-0 text-muted-foreground">{fmtSize(a.size_bytes)}</span>
       </div>
       <div className="flex flex-wrap gap-1">
         <Badge tone={a.kind === "image" ? "brand" : "neutral"}>{KIND_LABEL[a.kind] ?? "Document"}</Badge>
+        {a.category === "primary-logo" && <Badge tone="brand">Main logo</Badge>}
         {showSection && <Badge>{SLOT_LABEL(a.slot)}</Badge>}
       </div>
+      {a.kind === "image" && canEdit && (
+        <div className="space-y-1">
+          <Button size="sm" variant="ghost" disabled={suggesting} onClick={suggest} aria-label="Suggest caption, alt text and tags with AI">
+            <Sparkles className="size-3.5" /> {suggesting ? "Thinking…" : "Suggest with AI"}
+          </Button>
+          <p className="text-[11px] text-muted-foreground">Fills caption, alt text and tags with a suggestion. Check and tweak before saving elsewhere.</p>
+          {aiError && <p className="text-[11px] text-destructive">{aiError}</p>}
+        </div>
+      )}
+      {a.kind === "image" && canEdit && (
+        a.category === "primary-logo" ? (
+          <Button size="sm" onClick={() => chooseMainLogo(null)} aria-label="Remove as main logo">Remove as main logo</Button>
+        ) : (
+          <Button size="sm" variant="ghost" onClick={() => chooseMainLogo(a.id)} aria-label="Set as main logo">Set as main logo</Button>
+        )
+      )}
+      {a.category === "primary-logo" && (
+        <p className="text-[11px] text-muted-foreground">This is the project's main logo. It is used as the browser tab icon, app icon and share preview image.</p>
+      )}
       <BlurInput label="Caption" value={a.caption} onSave={(v) => updateAsset(a.id, { caption: v })} />
       {a.kind === "image" && <BlurInput label="Alt text" placeholder="Alt text (describe the image)" value={a.alt_text} onSave={(v) => updateAsset(a.id, { alt_text: v })} />}
       <BlurInput label="Tags" placeholder="Tags, comma separated" value={a.tags.join(", ")} onSave={(v) => updateAsset(a.id, { tags: v.split(",").map((t) => t.trim()).filter(Boolean) })} />
@@ -160,6 +219,7 @@ export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset;
           <Button size="sm" variant="danger" className="ml-auto" aria-label="Delete file" onClick={() => setConfirm(true)}><Trash2 className="size-3.5" /></Button>
         )}
       </div>
+      {view !== null && <Lightbox items={images} index={view} onClose={() => setView(null)} onNavigate={setView} />}
     </div>
   );
 }
@@ -190,6 +250,7 @@ export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section 
   const { upload, urls, jobs, canEdit } = useAssets();
   const ref = useRef<HTMLInputElement>(null);
   const [rejected, setRejected] = useState<string[]>([]);
+  const [preview, setPreview] = useState(false);
   const busy = jobs.some((j) => j.slot === slot && !j.done && !j.error);
   const send = async (list: FileList | null) => {
     if (!list || !list.length) return;
@@ -200,19 +261,28 @@ export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section 
     const ids = await upload(files, { slot, section });
     if (ids.length) onChange({ ...item, url: `asset:${ids[0]}` });
   };
+  const resolved = resolveSlotUrl(item.url, urls);
   return (
     <div>
-      <ImageSlot item={{ ...item, url: resolveSlotUrl(item.url, urls) }} onChange={onChange} {...(onDelete ? { onDelete } : {})} {...(aspect ? { aspect } : {})} />
+      <ImageSlot item={{ ...item, url: resolved }} onChange={onChange} {...(aspect ? { aspect } : {})} {...(resolved ? { onView: () => setPreview(true) } : {})} />
       {canEdit ? (
-        <div className="mt-2">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <Button size="sm" variant="brand" disabled={busy} onClick={() => ref.current?.click()}>
             <UploadCloud className="size-3.5" /> {busy ? "Uploading…" : item.url ? "Upload a different image" : "Upload image"}
           </Button>
+          {onDelete && (
+            <Button size="sm" variant="danger" aria-label="Delete visual" onClick={onDelete}>
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
           <input ref={ref} type="file" multiple accept={IMAGE_ACCEPT} className="hidden" data-testid={`slot-upload-${slot}`} onChange={(e) => { send(e.target.files); e.target.value = ""; }} />
-          {rejected.length > 0 && <p className="mt-1 text-[11px] text-destructive">Only images go here: {rejected.join(", ")} skipped.</p>}
+          {rejected.length > 0 && <p className="w-full text-[11px] text-destructive">Only images go here: {rejected.join(", ")} skipped.</p>}
         </div>
       ) : (
         <p className="mt-2 text-[11px] text-muted-foreground">Switch to Edit mode (passcode) to upload an image directly.</p>
+      )}
+      {preview && resolved && (
+        <Lightbox items={[{ src: resolved, alt: item.caption || "Uploaded visual", title: item.caption }]} index={0} onClose={() => setPreview(false)} />
       )}
     </div>
   );

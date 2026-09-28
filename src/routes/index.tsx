@@ -4,19 +4,37 @@ import { useProject } from "@/lib/project/store";
 import { SECTIONS } from "@/lib/project/sections";
 import { useAssets } from "@/lib/project/assets";
 import { runChecks, sectionProgress } from "@/lib/project/review";
+import { getBrandHead } from "@/lib/project/brand.functions";
 import { Card, PageHeader, Progress, StatusBadge, Badge, Button } from "@/components/app/kit";
 import { MemberPicker, StatusSelect } from "@/components/app/SectionTask";
 import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Dashboard | Tech Ventura Project Workspace" },
-      { name: "description", content: "Track the 8-hour Tech Ventura group plan: members, tasks, status and progress." },
-      { property: "og:title", content: "Dashboard | Tech Ventura Project Workspace" },
-      { property: "og:description", content: "Track the 8-hour Tech Ventura group plan: members, tasks, status and progress." },
-    ],
-  }),
+  // The share image follows the logo the team marks as the main logo.
+  loader: async () => {
+    try {
+      return await getBrandHead();
+    } catch {
+      return { origin: "https://kyouth-room-2.lovable.app", logoId: "" };
+    }
+  },
+  head: ({ loaderData }) => {
+    const share = loaderData?.logoId
+      ? [
+          { property: "og:image", content: `${loaderData.origin}/api/public/icon?v=${loaderData.logoId}` },
+          { name: "twitter:image", content: `${loaderData.origin}/api/public/icon?v=${loaderData.logoId}` },
+        ]
+      : [];
+    return {
+      meta: [
+        { title: "Dashboard | Tech Ventura Project Workspace" },
+        { name: "description", content: "Track the 8-hour Tech Ventura group plan: members, tasks, status and progress." },
+        { property: "og:title", content: "Dashboard | Tech Ventura Project Workspace" },
+        { property: "og:description", content: "Track the 8-hour Tech Ventura group plan: members, tasks, status and progress." },
+        ...share,
+      ],
+    };
+  },
   component: Dashboard,
 });
 

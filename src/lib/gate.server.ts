@@ -6,8 +6,8 @@ import { useSession } from "@tanstack/react-start/server";
 const sessionConfig = () => ({
   password: process.env["SESSION_SECRET"]!,
   name: "tv-edit",
-  maxAge: 60 * 60 * 24 * 7,
-  cookie: { httpOnly: true, secure: false, sameSite: "lax" as const, path: "/" },
+  maxAge: 60 * 60 * 24 * 30,
+  cookie: { httpOnly: true, secure: true, sameSite: "none" as const, path: "/" },
 });
 
 type GateSession = { edit?: boolean };

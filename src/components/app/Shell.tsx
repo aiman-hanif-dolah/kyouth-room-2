@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 // On-screen emoji keyboard for the emoji passcode. Append-only keys plus
 // backspace; the typed sequence is compared server-side like the text code.
@@ -7,6 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { Briefcase, Building2, ClipboardCheck, LayoutDashboard, Megaphone, Menu, MonitorPlay, Package, Sparkles, Users, X, FolderOpen, Lock, PencilLine, FlaskConical, ArrowUpRight } from "lucide-react";
 import { useProject } from "@/lib/project/store";
 import { useEditMode } from "@/lib/project/editmode";
+import { useAssets } from "@/lib/project/assets";
 import { Button } from "./kit";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,13 @@ export function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { state, sync, syncError } = useProject();
   const { canEdit, unlock, lock } = useEditMode();
+  const { primaryLogoId } = useAssets();
+
+  // Keep the browser tab icon (favicon) in step with the chosen main logo without a reload.
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (link) link.href = primaryLogoId ? `/api/public/icon?v=${primaryLogoId}` : "/favicon.ico";
+  }, [primaryLogoId]);
   const syncText = !canEdit
     ? "Published view: read-only, same content for everyone. Switch to Edit with the passcode to change content or upload files."
     : sync === "loading" ? "Connecting to the shared workspace…" : sync === "saving" ? "Saving to the shared workspace…" : sync === "error" ? `Shared save failed: ${syncError}. Your edits stay in this browser until it works again.` : "Edit mode. Changes save to the shared workspace and appear on everyone's devices. If two people edit at the same moment, the last save wins.";
