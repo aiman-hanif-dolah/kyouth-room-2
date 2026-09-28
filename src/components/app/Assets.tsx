@@ -126,12 +126,22 @@ function BlurInput({ value, onSave, label, placeholder }: { value: string; onSav
 export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset; list: Asset[]; index: number; showSection?: boolean; vertical?: boolean }) {
   const { urls, updateAsset, removeAsset, replaceAsset, moveAsset } = useAssets();
   const [confirm, setConfirm] = useState(false);
+  const [view, setView] = useState<number | null>(null);
   const rep = useRef<HTMLInputElement>(null);
   const url = urls[a.id];
   const Prev = vertical ? ArrowUp : ArrowLeft, Next = vertical ? ArrowDown : ArrowRight;
+  // Every image in this gallery becomes a slide of the full-screen preview.
+  const images: LightboxItem[] = list
+    .filter((x) => x.kind === "image" && urls[x.id])
+    .map((x) => ({ src: urls[x.id], alt: x.alt_text || x.caption || x.file_name, title: x.file_name }));
+  const openPreview = () => {
+    if (!url || a.kind !== "image") return;
+    const i = images.findIndex((im) => im.src === url);
+    if (i >= 0) setView(i);
+  };
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-2.5" data-testid="asset-card">
-      <Thumb a={a} url={url} />
+      <Thumb a={a} url={url} onClick={a.kind === "image" && url ? openPreview : undefined} />
       <div className="flex items-center gap-1.5 text-[11px]">
         <span className="min-w-0 flex-1 truncate text-foreground" title={a.file_name}>{a.file_name}</span>
         <span className="shrink-0 text-muted-foreground">{fmtSize(a.size_bytes)}</span>
