@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Download, ExternalLink, FileText, RefreshCw, Trash2, UploadCloud, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Download, ExternalLink, FileText, RefreshCw, Sparkles, Trash2, UploadCloud, X } from "lucide-react";
+import { suggestAssetMeta } from "@/lib/project/ai.functions";
 import { ACCEPT, IMAGE_ACCEPT, MAX_FILE_MB, SLOT_LABEL, fileExt, fmtSize, isImageName, useAssets, type Asset } from "@/lib/project/assets";
 import { SECTIONS } from "@/lib/project/sections";
 import type { SectionId } from "@/lib/project/types";
@@ -124,12 +125,29 @@ function BlurInput({ value, onSave, label, placeholder }: { value: string; onSav
 }
 
 export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset; list: Asset[]; index: number; showSection?: boolean; vertical?: boolean }) {
-  const { urls, updateAsset, removeAsset, replaceAsset, moveAsset } = useAssets();
+  const { urls, updateAsset, removeAsset, replaceAsset, moveAsset, canEdit } = useAssets();
   const [confirm, setConfirm] = useState(false);
   const [view, setView] = useState<number | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [aiError, setAiError] = useState("");
   const rep = useRef<HTMLInputElement>(null);
   const url = urls[a.id];
   const Prev = vertical ? ArrowUp : ArrowLeft, Next = vertical ? ArrowDown : ArrowRight;
+  const suggest = async () => {
+    setSuggesting(true);
+    setAiError("");
+    try {
+      const r = await suggestAssetMeta({ data: { storagePath: a.storage_path, fileName: a.file_name, slotLabel: SLOT_LABEL(a.slot) } });
+      const patch: Partial<Asset> = { tags: r.tags };
+      if (r.caption) patch.caption = r.caption;
+      if (r.altText && a.kind === "image") patch.alt_text = r.altText;
+      await updateAsset(a.id, patch);
+    } catch (e) {
+      setAiError((e as Error).message);
+    } finally {
+      setSuggesting(false);
+    }
+  };
   // Every image in this gallery becomes a slide of the full-screen preview.
   const images: LightboxItem[] = list
     .filter((x) => x.kind === "image" && urls[x.id])
@@ -150,6 +168,15 @@ export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset;
         <Badge tone={a.kind === "image" ? "brand" : "neutral"}>{KIND_LABEL[a.kind] ?? "Document"}</Badge>
         {showSection && <Badge>{SLOT_LABEL(a.slot)}</Badge>}
       </div>
+      {a.kind === "image" && canEdit && (
+        <div className="space-y-1">
+          <Button size="sm" variant="ghost" disabled={suggesting} onClick={suggest} aria-label="Suggest caption, alt text and tags with AI">
+            <Sparkles className="size-3.5" /> {suggesting ? "Thinking…" : "Suggest with AI"}
+          </Button>
+          <p className="text-[11px] text-muted-foreground">Fills caption, alt text and tags with a suggestion. Check and tweak before saving elsewhere.</p>
+          {aiError && <p className="text-[11px] text-destructive">{aiError}</p>}
+        </div>
+      )}
       <BlurInput label="Caption" value={a.caption} onSave={(v) => updateAsset(a.id, { caption: v })} />
       {a.kind === "image" && <BlurInput label="Alt text" placeholder="Alt text (describe the image)" value={a.alt_text} onSave={(v) => updateAsset(a.id, { alt_text: v })} />}
       <BlurInput label="Tags" placeholder="Tags, comma separated" value={a.tags.join(", ")} onSave={(v) => updateAsset(a.id, { tags: v.split(",").map((t) => t.trim()).filter(Boolean) })} />
