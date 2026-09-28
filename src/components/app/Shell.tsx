@@ -7,6 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { Briefcase, Building2, ClipboardCheck, LayoutDashboard, Megaphone, Menu, MonitorPlay, Package, Sparkles, Users, X, FolderOpen, Lock, PencilLine } from "lucide-react";
 import { useProject } from "@/lib/project/store";
 import { useEditMode } from "@/lib/project/editmode";
+import { useAssets } from "@/lib/project/assets";
 import { Button } from "./kit";
 import { cn } from "@/lib/utils";
 
