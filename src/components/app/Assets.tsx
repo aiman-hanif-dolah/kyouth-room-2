@@ -4,7 +4,7 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Download, ExternalLink, File
 import { ACCEPT, IMAGE_ACCEPT, MAX_FILE_MB, SLOT_LABEL, fileExt, fmtSize, isImageName, useAssets, type Asset } from "@/lib/project/assets";
 import { SECTIONS } from "@/lib/project/sections";
 import type { SectionId } from "@/lib/project/types";
-import { Badge, Button } from "./kit";
+import { Badge, Button, ImageSlot } from "./kit";
 import { cn } from "@/lib/utils";
 
 const inputCls = "w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
@@ -176,6 +176,45 @@ export function AssetGallery({ slot, section, title, imagesOnly, cols = "sm:grid
       <Dropzone slot={slot} section={section} imagesOnly={!!imagesOnly} />
       {error && <p className="text-[11px] text-destructive">{error}</p>}
       {list.length > 0 && <div className={cn("grid gap-3", cols)}>{list.map((a, i) => <AssetCard key={a.id} a={a} list={list} index={i} />)}</div>}
+    </div>
+  );
+}
+
+/** Resolve an image slot URL: "asset:<id>" references a shared upload, anything else is a plain link. */
+export function resolveSlotUrl(url: string, urls: Record<string, string>): string {
+  if (url.startsWith("asset:")) return urls[url.slice(6)] ?? "";
+  return url;
+}
+
+/** ImageSlot with a direct upload button: files go to this slot's shared gallery and the first one is linked into the slot. */
+export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section }: { item: { id: string; url: string; caption: string; prompt: string }; onChange: (v: { id: string; url: string; caption: string; prompt: string }) => void; onDelete?: () => void; aspect?: string; slot: string; section: SectionId }) {
+  const { upload, urls, jobs, signedIn } = useAssets();
+  const ref = useRef<HTMLInputElement>(null);
+  const [rejected, setRejected] = useState<string[]>([]);
+  const busy = jobs.some((j) => j.slot === slot && !j.done && !j.error);
+  const send = async (list: FileList | null) => {
+    if (!list || !list.length) return;
+    const bad = Array.from(list).filter((f) => !isImageName(f.name)).map((f) => f.name);
+    const files = Array.from(list).filter((f) => isImageName(f.name));
+    setRejected(bad);
+    if (!files.length) return;
+    const ids = await upload(files, { slot, section });
+    if (ids.length) onChange({ ...item, url: `asset:${ids[0]}` });
+  };
+  return (
+    <div>
+      <ImageSlot item={{ ...item, url: resolveSlotUrl(item.url, urls) }} onChange={onChange} onDelete={onDelete} aspect={aspect} />
+      {signedIn ? (
+        <div className="mt-2">
+          <Button size="sm" variant="brand" disabled={busy} onClick={() => ref.current?.click()}>
+            <UploadCloud className="size-3.5" /> {busy ? "Uploading…" : item.url ? "Upload a different image" : "Upload image"}
+          </Button>
+          <input ref={ref} type="file" multiple accept={IMAGE_ACCEPT} className="hidden" data-testid={`slot-upload-${slot}`} onChange={(e) => { send(e.target.files); e.target.value = ""; }} />
+          {rejected.length > 0 && <p className="mt-1 text-[11px] text-destructive">Only images go here: {rejected.join(", ")} skipped.</p>}
+        </div>
+      ) : (
+        <p className="mt-2 text-[11px] text-muted-foreground"><Link to="/auth" className="text-brand-soft underline">Sign in</Link> to upload an image directly.</p>
+      )}
     </div>
   );
 }
