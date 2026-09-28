@@ -12,7 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ProjectProvider } from "../lib/project/store";
-import { AuthProvider } from "../lib/project/auth";
+import { EditModeProvider } from "../lib/project/editmode";
 import { AssetsProvider } from "../lib/project/assets";
 import { Shell } from "../components/app/Shell";
 
@@ -126,7 +126,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <AuthProvider>
+      <EditModeProvider>
         <ProjectProvider>
           <AssetsProvider>
             <Shell>
@@ -134,7 +134,7 @@ function RootComponent() {
             </Shell>
           </AssetsProvider>
         </ProjectProvider>
-      </AuthProvider>
+      </EditModeProvider>
     </QueryClientProvider>
   );
 }

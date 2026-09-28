@@ -21,7 +21,7 @@ export const Route = createFileRoute("/assets")({
 });
 
 function AssetsPage() {
-  const { assets, ready, signedIn } = useAssets();
+  const { assets, ready, canEdit } = useAssets();
   const [section, setSection] = useState<SectionId>("s1");
   const [filter, setFilter] = useState<"all" | SectionId>("all");
   const [kind, setKind] = useState<"all" | "image" | "document" | "video" | "audio">("all");
@@ -40,7 +40,7 @@ function AssetsPage() {
         <Dropzone slot={`library.${section}`} section={section} />
         <div className="mt-3"><StorageNote /></div>
       </Card>
-      {signedIn && (
+      {ready && (
         <Card className="mt-4" title={`Library (${list.length} of ${assets.length})`} action={
           <div className="flex gap-2">
             <select aria-label="Filter task" className={sel} value={filter} onChange={(e) => setFilter(e.target.value as any)}>
