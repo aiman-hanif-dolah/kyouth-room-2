@@ -14,19 +14,17 @@ const EditContext = g.__tvEditCtx ?? (g.__tvEditCtx = createContext<Ctx | null>(
 const LS_KEY = "tv-edit-unlocked";
 
 export function EditModeProvider({ children }: { children: ReactNode }) {
-  // Restore instantly from localStorage so a reload never flashes Published
-  // mode; the server cookie (30 days) still gates every write.
-  const [canEdit, setCanEdit] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.localStorage.getItem(LS_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
+  // Restore from localStorage right after mount so a reload keeps Edit mode;
+  // the server cookie (30 days) still gates every write.
+  const [canEdit, setCanEdit] = useState(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    try {
+      if (window.localStorage.getItem(LS_KEY) === "1") setCanEdit(true);
+    } catch {
+      /* storage unavailable */
+    }
     getEditStatus()
       .then((r) => {
         setCanEdit(r.edit);
