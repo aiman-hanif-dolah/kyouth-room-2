@@ -251,7 +251,7 @@ export function AiNotConnected({ what = "AI drafting" }: { what?: string }) {
 }
 
 /** Prompt slot: copyable image prompt, optional pasted image link. Uploads go to the shared asset galleries. */
-export function ImageSlot({ item, onChange, onDelete, aspect = "aspect-[4/3]" }: { item: ImageItem; onChange: (v: ImageItem) => void; onDelete?: () => void; aspect?: string }) {
+export function ImageSlot({ item, onChange, aspect = "aspect-[4/3]" }: { item: ImageItem; onChange: (v: ImageItem) => void; aspect?: string }) {
   const [url, setUrl] = useState("");
   const [err, setErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -271,11 +271,6 @@ export function ImageSlot({ item, onChange, onDelete, aspect = "aspect-[4/3]" }:
         {item.url && (
           <Button size="sm" variant="ghost" onClick={() => onChange({ ...item, url: "" })}>
             Clear
-          </Button>
-        )}
-        {onDelete && (
-          <Button size="sm" variant="danger" onClick={onDelete} aria-label="Delete visual">
-            <Trash2 className="size-3.5" />
           </Button>
         )}
       </div>
