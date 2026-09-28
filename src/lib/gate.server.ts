@@ -6,7 +6,7 @@ import { useSession } from "@tanstack/react-start/server";
 const sessionConfig = () => ({
   password: process.env["SESSION_SECRET"]!,
   name: "tv-edit",
-  maxAge: 60 * 60 * 24 * 7,
+  maxAge: 60 * 60 * 24 * 30,
   cookie: { httpOnly: true, secure: false, sameSite: "lax" as const, path: "/" },
 });
 

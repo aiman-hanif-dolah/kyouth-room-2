@@ -11,13 +11,32 @@ interface Ctx {
 const g = globalThis as unknown as { __tvEditCtx?: React.Context<Ctx | null> };
 const EditContext = g.__tvEditCtx ?? (g.__tvEditCtx = createContext<Ctx | null>(null));
 
+const LS_KEY = "tv-edit-unlocked";
+
 export function EditModeProvider({ children }: { children: ReactNode }) {
-  const [canEdit, setCanEdit] = useState(false);
+  // Restore instantly from localStorage so a reload never flashes Published
+  // mode; the server cookie (30 days) still gates every write.
+  const [canEdit, setCanEdit] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem(LS_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     getEditStatus()
-      .then((r) => setCanEdit(r.edit))
+      .then((r) => {
+        setCanEdit(r.edit);
+        try {
+          if (r.edit) window.localStorage.setItem(LS_KEY, "1");
+          else window.localStorage.removeItem(LS_KEY);
+        } catch {
+          /* storage unavailable */
+        }
+      })
       .catch(() => {})
       .finally(() => setReady(true));
   }, []);
@@ -25,7 +44,14 @@ export function EditModeProvider({ children }: { children: ReactNode }) {
   const unlock = useCallback(async (passcode: string) => {
     try {
       const r = await unlockEdit({ data: { passcode } });
-      if (r.ok) setCanEdit(true);
+      if (r.ok) {
+        setCanEdit(true);
+        try {
+          window.localStorage.setItem(LS_KEY, "1");
+        } catch {
+          /* storage unavailable */
+        }
+      }
       return r.ok;
     } catch {
       return false;
@@ -37,6 +63,11 @@ export function EditModeProvider({ children }: { children: ReactNode }) {
       await lockEdit();
     } catch {
       /* still lock locally */
+    }
+    try {
+      window.localStorage.removeItem(LS_KEY);
+    } catch {
+      /* storage unavailable */
     }
     setCanEdit(false);
   }, []);
