@@ -320,7 +320,7 @@ export function SlotImageSlot({ item, onChange, onDelete, aspect, slot, section 
         onChange={onChange}
         {...(aspect ? { aspect } : {})}
         {...(resolved ? { onView: () => setPreview(true) } : {})}
-        onUpload={canEdit ? () => ref.current?.click() : undefined}
+        {...(canEdit ? { onUpload: () => { ref.current?.click(); } } : {})}
         isUploading={busy}
       />
       {canEdit ? (
