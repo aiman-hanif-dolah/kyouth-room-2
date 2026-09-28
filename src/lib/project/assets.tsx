@@ -115,7 +115,7 @@ interface Ctx {
   signedIn: boolean;
   error: string;
   jobs: UploadJob[];
-  upload: (files: File[], opts: { slot: string; section: SectionId; memberId?: string }) => Promise<void>;
+  upload: (files: File[], opts: { slot: string; section: SectionId; memberId?: string }) => Promise<string[]>;
   updateAsset: (id: string, patch: Partial<Asset>) => Promise<void>;
   removeAsset: (a: Asset) => Promise<void>;
   replaceAsset: (a: Asset, file: File) => Promise<void>;
@@ -185,31 +185,34 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
   };
 
   const upload: Ctx["upload"] = async (files, { slot, section, memberId }) => {
-    if (!userId) return;
+    if (!userId) return [];
     const base = Date.now();
-    await Promise.all(
+    const created = await Promise.all(
       files.map(async (file, i) => {
         const jobId = crypto.randomUUID();
         setJobs((js) => [...js, { id: jobId, name: file.name, slot, progress: 0, error: "", done: false }]);
         const bad = await validate(file);
-        if (bad) return setJob(jobId, { error: bad });
+        if (bad) { setJob(jobId, { error: bad }); return null; }
         try {
           const r = await sendFile(file, jobId);
-          const { error: ie } = await supabase.from("project_assets").insert({
+          const { data: ins, error: ie } = await supabase.from("project_assets").insert({
             storage_path: r.path, file_name: file.name, mime_type: r.type, size_bytes: file.size, kind: r.kind,
             width: r.dims?.w ?? null, height: r.dims?.h ?? null, section_id: section, slot,
             caption: "", alt_text: "", tags: [], in_presentation: r.kind === "image", sort_order: base + i,
             uploaded_by: userId, uploader_member_id: memberId ?? "",
-          });
+          }).select("id").single();
           if (ie) { await supabase.storage.from(BUCKET).remove([r.path]); throw new Error(ie.message); }
           setJob(jobId, { progress: 100, done: true });
           setTimeout(() => setJobs((js) => js.filter((j) => j.id !== jobId)), 2500);
+          return (ins as { id: string } | null)?.id ?? null;
         } catch (err) {
           setJob(jobId, { error: `${file.name}: ${(err as Error).message}` });
+          return null;
         }
       }),
     );
     await load();
+    return created.filter((id): id is string => !!id);
   };
 
   const updateAsset: Ctx["updateAsset"] = async (id, patch) => {
