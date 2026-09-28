@@ -366,7 +366,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         const addGarmentPanel = (shape: THREE.Shape) => {
           const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.24, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.055, bevelThickness: 0.06 });
           fitFabricUvs(geometry);
-          const material = makeFabricMaterial(fabricMap);
+          const material = makeFabricMaterial(fabricMap as THREE.CanvasTexture);
           material.map!.wrapS = THREE.ClampToEdgeWrapping;
           material.map!.wrapT = THREE.ClampToEdgeWrapping;
           const mesh = new THREE.Mesh(geometry, material);
