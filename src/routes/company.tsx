@@ -187,25 +187,35 @@ function CompanyPage() {
         </Card>
       </div>
 
-      <Card className="mt-4" title="5. Logo and mood board" subtitle="Image generation is not connected here. Upload your images directly on each card (they also land in the galleries below), or copy the prompt into your image tool and paste a link.">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Logo</p>
-            <SlotImageSlot item={c.logo} aspect="aspect-square" slot="company.logo" section="s1" onChange={(v) => u1((d) => { d.logo = v; })} />
-          </div>
+      <Card className="mt-4" title="5. Logo" subtitle="Upload logo files, paste a link, or copy the prompt into your image tool. Image generation is not connected here.">
+        <div className="space-y-3">
+          <PromptBox label="Prompt for your image tool" value={c.logo.prompt} onChange={(v) => u1((d) => { d.logo.prompt = v; })} />
+          <LinkInput onAdd={(url) => u1((d) => { d.logo.url = url; })} />
+          {/^https?:\/\//.test(c.logo.url) && (
+            <div className="max-w-xs">
+              <LinkedImage item={c.logo} onChange={(v) => u1((d) => { d.logo = v; })} onClear={() => u1((d) => { d.logo.url = ""; })} />
+            </div>
+          )}
+          <AssetGallery slot="company.logo" section="s1" imagesOnly title="Logo files" />
+          <StorageNote />
+        </div>
+      </Card>
+
+      <Card className="mt-4" title="6. Mood board" subtitle="Upload mood board images, paste links, or copy a prompt into your image tool." action={<Button size="sm" onClick={() => u1((d) => { d.moodboard.push(newImage()); })}><Plus className="size-3.5" /> Prompt</Button>}>
+        <div className="space-y-3">
           {c.moodboard.map((m, i) => (
-            <div key={m.id}>
-              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Mood board {i + 1}</p>
-              <SlotImageSlot item={m} aspect="aspect-square" slot="company.moodboard" section="s1" onChange={(v) => u1((d) => { d.moodboard[i] = v; })} onDelete={() => u1((d) => { d.moodboard.splice(i, 1); })} />
+            <div key={m.id} className="space-y-2">
+              <PromptBox label={`Prompt ${i + 1} for your image tool`} value={m.prompt} onChange={(v) => u1((d) => { d.moodboard[i].prompt = v; })} onDelete={() => u1((d) => { d.moodboard.splice(i, 1); })} />
+              {/^https?:\/\//.test(m.url) && (
+                <div className="max-w-xs">
+                  <LinkedImage item={m} onChange={(v) => u1((d) => { d.moodboard[i] = v; })} onClear={() => u1((d) => { d.moodboard[i].url = ""; })} />
+                </div>
+              )}
             </div>
           ))}
+          <LinkInput onAdd={(url) => u1((d) => { d.moodboard.push({ ...newImage(), url }); })} />
+          <AssetGallery slot="company.moodboard" section="s1" imagesOnly title="Mood board uploads" />
         </div>
-        <Button size="sm" className="mt-3" onClick={() => u1((d) => { d.moodboard.push(newImage()); })}><Plus className="size-3.5" /> Mood board prompt</Button>
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_2fr]">
-          <AssetGallery slot="company.logo" section="s1" title="Logo files" imagesOnly cols="grid-cols-1" />
-          <AssetGallery slot="company.moodboard" section="s1" title="Mood board uploads" />
-        </div>
-        <div className="mt-3"><StorageNote /></div>
       </Card>
 
       <h2 className="mb-3 mt-10 text-xl font-normal tracking-tight">Company profile (Hour 2)</h2>
