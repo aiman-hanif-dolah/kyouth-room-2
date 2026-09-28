@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Download, ExternalLink, FileText, RefreshCw, Trash2, UploadCloud, X } from "lucide-react";
-import { ACCEPT, IMAGE_ACCEPT, MAX_FILE_MB, SLOT_LABEL, fileExt, fmtSize, useAssets, type Asset } from "@/lib/project/assets";
+import { ACCEPT, IMAGE_ACCEPT, MAX_FILE_MB, SLOT_LABEL, fileExt, fmtSize, isImageName, useAssets, type Asset } from "@/lib/project/assets";
 import { SECTIONS } from "@/lib/project/sections";
 import type { SectionId } from "@/lib/project/types";
 import { Badge, Button } from "./kit";
