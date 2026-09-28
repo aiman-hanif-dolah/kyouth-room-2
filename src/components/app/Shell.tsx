@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 // backspace; the typed sequence is compared server-side like the text code.
 const EMOJI_KEYS = ["😎", "🔥", "🚀", "🌙", "⭐", "🍌", "🎨", "💡", "🐝", "🌺", "🏆", "❤️"];
 import { Link } from "@tanstack/react-router";
-import { Briefcase, Building2, ClipboardCheck, LayoutDashboard, Megaphone, Menu, MonitorPlay, Package, Sparkles, Users, X, RotateCcw, FolderOpen, Lock, PencilLine } from "lucide-react";
+import { Briefcase, Building2, ClipboardCheck, LayoutDashboard, Megaphone, Menu, MonitorPlay, Package, Sparkles, Users, X, FolderOpen, Lock, PencilLine } from "lucide-react";
 import { useProject } from "@/lib/project/store";
 import { useEditMode } from "@/lib/project/editmode";
 import { Button } from "./kit";
@@ -25,12 +25,11 @@ const NAV = [
 
 export function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const { state, reset, sync, syncError } = useProject();
+  const { state, sync, syncError } = useProject();
   const { canEdit, unlock, lock } = useEditMode();
   const syncText = !canEdit
     ? "Published view: read-only, same content for everyone. Switch to Edit with the passcode to change content or upload files."
     : sync === "loading" ? "Connecting to the shared workspace…" : sync === "saving" ? "Saving to the shared workspace…" : sync === "error" ? `Shared save failed: ${syncError}. Your edits stay in this browser until it works again.` : "Edit mode. Changes save to the shared workspace and appear on everyone's devices. If two people edit at the same moment, the last save wins.";
-  const [confirm, setConfirm] = useState(false);
   const [askCode, setAskCode] = useState(false);
   const [code, setCode] = useState("");
   const [badCode, setBadCode] = useState(false);
