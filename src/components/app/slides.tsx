@@ -102,7 +102,7 @@ export function buildSlides(s: ProjectState, interactive = true, media: SlideMed
 
   add("product", c.productName, <Grid><Box title="Concept"><T v={p.concept} /></Box><Box title="Description"><T v={p.description} /></Box><Box title="Features">{p.features.map((f) => <p key={f.id}><span className="text-foreground">{f.title}:</span> {f.benefit}</p>)}</Box><Box title="Differentiators"><Bullets items={p.differentiators} /></Box></Grid>);
   add("product", "Live demo", interactive ? <ProductDemo /> : <p className="text-muted-foreground">Live interactive demo shown in the app.</p>);
-  visuals("product", "Mockups", [...p.mockups.filter((x) => x.url).map((x) => ({ id: x.id, url: x.url, caption: x.caption, alt: x.caption })), ...pics((a) => a.section_id === "s4")]);
+  visuals("product", "Mockups", [...p.mockups.filter((x) => resolveUrl(x.url, media.urls)).map((x) => ({ id: x.id, url: resolveUrl(x.url, media.urls), caption: x.caption, alt: x.caption })), ...pics((a) => a.section_id === "s4")]);
 
   add("marketing", "Marketing strategy", <Grid><Box title="Strategy"><T v={m.strategy} /></Box><Box title="Content pillars">{m.pillars.map((x) => <p key={x.id}><span className="text-foreground">{x.title}:</span> {x.description}</p>)}</Box><Box title="Influencers"><T v={m.influencer} /></Box><Box title="Paid ads"><T v={m.paid} /></Box></Grid>);
   add("marketing", "Content samples", (
