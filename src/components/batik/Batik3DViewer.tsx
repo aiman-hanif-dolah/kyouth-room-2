@@ -15,6 +15,7 @@ const previewStages = [
   { id: "gallery", label: "Night gallery", background: "radial-gradient(ellipse at 50% 38%, #514762 0, #29243a 54%, #17151e 100%)" },
   { id: "garden", label: "Garden light", background: "radial-gradient(ellipse at 50% 38%, #f3f3dd 0, #dce6d6 50%, #bbcbbd 100%)" },
 ] as const;
+const maxModelTilt = 0.6;
 
 export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewerProps) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -465,12 +466,19 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
           displayHead.scale.set(0.9, 1.18, 0.82);
           displayHead.position.y = -0.08;
           group.add(displayHead);
-          const wrapGeometry = new THREE.TorusGeometry(0.49, 0.14, 16, 56);
+          const wrapCapGeometry = new THREE.SphereGeometry(0.7, 48, 32, 0, Math.PI * 2, 0.08, 1.3);
+          fitFabricUvs(wrapCapGeometry);
+          const wrapCap = new THREE.Mesh(wrapCapGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+          wrapCap.scale.set(0.92, 1.18, 0.84);
+          wrapCap.position.y = -0.08;
+          wrapCap.castShadow = true;
+          group.add(wrapCap);
+          const wrapGeometry = new THREE.TorusGeometry(0.55, 0.1, 16, 56);
           wrapGeometry.rotateX(Math.PI / 2);
           fitFabricUvs(wrapGeometry);
           const wrap = new THREE.Mesh(wrapGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
           wrap.scale.set(1.08, 0.92, 1);
-          wrap.position.y = 0.31;
+          wrap.position.y = 0.18;
           wrap.castShadow = true;
           group.add(wrap);
           const knot = new THREE.Mesh(new THREE.SphereGeometry(0.2, 20, 14), makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
@@ -637,23 +645,29 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       }
 
       case "bucket-hat": {
-        const crownGeometry = new THREE.CylinderGeometry(0.7, 0.82, 0.82, 40, 12);
+        const crownGeometry = new THREE.CylinderGeometry(0.72, 0.86, 1.14, 48, 16);
         fitFabricUvs(crownGeometry);
         const crown = new THREE.Mesh(crownGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
-        crown.position.y = 0.28;
+        crown.position.y = 0.45;
         crown.castShadow = true;
         group.add(crown);
 
-        const brimGeometry = new THREE.CylinderGeometry(1.1, 0.88, 0.12, 48, 2);
+        const brimShape = new THREE.Shape();
+        brimShape.absarc(0, 0, 1.28, 0, Math.PI * 2, false);
+        const brimOpening = new THREE.Path();
+        brimOpening.absarc(0, 0, 0.83, 0, Math.PI * 2, true);
+        brimShape.holes.push(brimOpening);
+        const brimGeometry = new THREE.ExtrudeGeometry(brimShape, { depth: 0.08, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.025, bevelThickness: 0.025 });
         fitFabricUvs(brimGeometry);
+        brimGeometry.rotateX(-Math.PI / 2);
         const brim = new THREE.Mesh(brimGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
-        brim.position.y = -0.2;
+        brim.position.y = -0.12;
         brim.castShadow = true;
         group.add(brim);
 
-        const hatBand = new THREE.Mesh(new THREE.TorusGeometry(0.81, 0.035, 8, 40), darkAccentMat);
+        const hatBand = new THREE.Mesh(new THREE.TorusGeometry(0.84, 0.025, 8, 48), darkAccentMat);
         hatBand.rotation.x = Math.PI / 2;
-        hatBand.position.y = -0.08;
+        hatBand.position.y = -0.02;
         group.add(hatBand);
         break;
       }
@@ -731,6 +745,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
 
     let destroyed = false;
     const fabricMaterials = fabricMaterialsRef.current;
+    const fabricSurfaceMaps = fabricSurfaceMapsRef.current;
     const width = container.clientWidth || 480;
     const height = container.clientHeight || 420;
 
@@ -903,7 +918,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       const dx = e.clientX - prevMouseRef.current.x;
       const dy = e.clientY - prevMouseRef.current.y;
       modelGroupRef.current.rotation.y += dx * 0.012;
-      modelGroupRef.current.rotation.x = Math.max(-0.6, Math.min(0.6, modelGroupRef.current.rotation.x + dy * 0.008));
+      modelGroupRef.current.rotation.x = Math.max(-maxModelTilt, Math.min(maxModelTilt, modelGroupRef.current.rotation.x + dy * 0.008));
       targetRotationRef.current = { x: modelGroupRef.current.rotation.x, y: modelGroupRef.current.rotation.y };
       setAutoRotate(false);
       prevMouseRef.current = { x: e.clientX, y: e.clientY };
@@ -925,7 +940,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       if (direction) {
         e.preventDefault();
         targetRotationRef.current.y = (autoRotateRef.current ? modelGroupRef.current.rotation.y : targetRotationRef.current.y) + direction[0];
-        targetRotationRef.current.x = Math.max(-0.6, Math.min(0.6, targetRotationRef.current.x + direction[1]));
+        targetRotationRef.current.x = Math.max(-maxModelTilt, Math.min(maxModelTilt, targetRotationRef.current.x + direction[1]));
         setAutoRotate(false);
       }
     };
@@ -983,13 +998,16 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       camera.updateProjectionMatrix();
       const bounds = new THREE.Box3().setFromObject(modelGroupRef.current);
       const centre = bounds.getCenter(new THREE.Vector3());
-      const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+      const size = modelSizeRef.current;
+      const scale = productSizeScale({ product: designRef.current.product, size: designRef.current.size });
+      const horizontalRadius = Math.hypot(size.x * scale.x, size.z * scale.z) / 2;
+      const halfHeight = (size.y * scale.y * Math.cos(maxModelTilt) + horizontalRadius * 2 * Math.sin(maxModelTilt)) / 2;
       const verticalFov = THREE.MathUtils.degToRad(camera.fov);
       const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
       cameraDistanceRef.current = Math.max(
-        sphere.radius / Math.sin(verticalFov / 2),
-        sphere.radius / Math.sin(horizontalFov / 2),
-      ) * 1.3;
+        halfHeight / Math.sin(verticalFov / 2),
+        horizontalRadius / Math.sin(horizontalFov / 2),
+      ) * 1.12;
       cameraTargetRef.current.copy(centre);
       camera.position.copy(centre).addScaledVector(cameraDirectionRef.current, cameraDistanceRef.current / zoomRef.current);
       camera.lookAt(centre);
@@ -1022,8 +1040,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         materials.forEach((material) => material.dispose());
       }
       fabricMaterials.clear();
-      fabricSurfaceMapsRef.current.forEach((map) => map.dispose());
-      fabricSurfaceMapsRef.current.clear();
+      fabricSurfaceMaps.forEach((map) => map.dispose());
+      fabricSurfaceMaps.clear();
       textureRef.current?.dispose();
       textureRef.current = null;
       plinth.geometry.dispose();
