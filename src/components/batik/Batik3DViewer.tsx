@@ -295,7 +295,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         }
         bagGeo.computeVertexNormals();
         fitFabricUvs(bagGeo);
-        const bagMesh = new THREE.Mesh(bagGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+        const bagMesh = new THREE.Mesh(bagGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
         bagMesh.castShadow = true;
         bagMesh.receiveShadow = true;
         group.add(bagMesh);
@@ -339,7 +339,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         }
         cushionGeo.computeVertexNormals();
         fitFabricUvs(cushionGeo);
-        const cushionMesh = new THREE.Mesh(cushionGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+        const cushionMesh = new THREE.Mesh(cushionGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
         cushionMesh.castShadow = true;
         cushionMesh.receiveShadow = true;
         group.add(cushionMesh);
@@ -366,7 +366,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         const addGarmentPanel = (shape: THREE.Shape) => {
           const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.24, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.055, bevelThickness: 0.06 });
           fitFabricUvs(geometry);
-          const material = makeFabricMaterial(fabricMap);
+          const material = makeFabricMaterial(fabricMap as THREE.CanvasTexture);
           material.map!.wrapS = THREE.ClampToEdgeWrapping;
           material.map!.wrapT = THREE.ClampToEdgeWrapping;
           const mesh = new THREE.Mesh(geometry, material);
@@ -439,7 +439,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
             collarPoint.lineTo(side * 0.55, top + 0.02);
             collarPoint.lineTo(side * 0.3, top - 0.38);
             collarPoint.closePath();
-            const collar = new THREE.Mesh(new THREE.ShapeGeometry(collarPoint), makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+            const collar = new THREE.Mesh(new THREE.ShapeGeometry(collarPoint), makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
             collar.position.z = 0.13;
             group.add(collar);
           }
@@ -449,7 +449,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         if (isKurung || isKebaya) {
           const skirtGeo = new THREE.CylinderGeometry(isKurung ? 0.72 : 0.78, isKurung ? 1.05 : 1.2, isKurung ? 1.45 : 1.75, 40, 12);
           skirtGeo.scale(isKurung ? 0.92 : 1.1, 1, 0.6);
-          const skirtMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
+          const skirtMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture);
           const skirt = new THREE.Mesh(skirtGeo, skirtMaterial);
           skirt.position.y = isKurung ? -1.9 : -1.72;
           skirt.castShadow = true;
@@ -468,7 +468,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
           group.add(displayHead);
           const wrapCapGeometry = new THREE.SphereGeometry(0.7, 48, 32, 0, Math.PI * 2, 0.08, 1.3);
           fitFabricUvs(wrapCapGeometry);
-          const wrapCap = new THREE.Mesh(wrapCapGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+          const wrapCap = new THREE.Mesh(wrapCapGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
           wrapCap.scale.set(0.92, 1.18, 0.84);
           wrapCap.position.y = -0.08;
           wrapCap.castShadow = true;
@@ -476,12 +476,12 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
           const wrapGeometry = new THREE.TorusGeometry(0.55, 0.1, 16, 56);
           wrapGeometry.rotateX(Math.PI / 2);
           fitFabricUvs(wrapGeometry);
-          const wrap = new THREE.Mesh(wrapGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+          const wrap = new THREE.Mesh(wrapGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
           wrap.scale.set(1.08, 0.92, 1);
           wrap.position.y = 0.18;
           wrap.castShadow = true;
           group.add(wrap);
-          const knot = new THREE.Mesh(new THREE.SphereGeometry(0.2, 20, 14), makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+          const knot = new THREE.Mesh(new THREE.SphereGeometry(0.2, 20, 14), makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
           knot.scale.set(1.15, 0.75, 0.85);
           knot.position.set(0, 0.38, -0.48);
           group.add(knot);
@@ -495,7 +495,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
           }
           scarfGeo.computeVertexNormals();
           fitFabricUvs(scarfGeo);
-          const scarfMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
+          const scarfMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture);
           const scarfMesh = new THREE.Mesh(scarfGeo, scarfMaterial);
           scarfMesh.castShadow = true;
           group.add(scarfMesh);
@@ -517,7 +517,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         }
         textileGeo.computeVertexNormals();
         fitFabricUvs(textileGeo);
-        const textileMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
+        const textileMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture);
         const textile = new THREE.Mesh(textileGeo, textileMaterial);
         textile.castShadow = true;
         group.add(textile);
@@ -539,7 +539,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         // Hardcover book
         const bookCoverGeo = new THREE.BoxGeometry(2.1, 2.9, 0.35);
         fitFabricUvs(bookCoverGeo);
-        const bookCover = new THREE.Mesh(bookCoverGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+        const bookCover = new THREE.Mesh(bookCoverGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
         bookCover.castShadow = true;
         group.add(bookCover);
 
@@ -571,7 +571,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         }
         pouchGeo.computeVertexNormals();
         fitFabricUvs(pouchGeo);
-        const pouchMesh = new THREE.Mesh(pouchGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+        const pouchMesh = new THREE.Mesh(pouchGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
         pouchMesh.castShadow = true;
         group.add(pouchMesh);
 
@@ -596,7 +596,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         sleeveShape.closePath();
         const sleeveGeometry = new THREE.ExtrudeGeometry(sleeveShape, { depth: 0.22, bevelEnabled: true, bevelSegments: 4, bevelSize: 0.06, bevelThickness: 0.06 });
         fitFabricUvs(sleeveGeometry);
-        const sleeve = new THREE.Mesh(sleeveGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+        const sleeve = new THREE.Mesh(sleeveGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
         sleeve.position.z = -0.11;
         sleeve.castShadow = true;
         group.add(sleeve);
@@ -612,14 +612,14 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       case "apron": {
         const apronBodyGeometry = new THREE.BoxGeometry(1.9, 2.1, 0.14, 12, 16, 2);
         fitFabricUvs(apronBodyGeometry);
-        const apronBody = new THREE.Mesh(apronBodyGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+        const apronBody = new THREE.Mesh(apronBodyGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
         apronBody.position.y = -0.15;
         apronBody.castShadow = true;
         group.add(apronBody);
 
         const apronBibGeometry = new THREE.BoxGeometry(1.05, 1.15, 0.14, 8, 10, 2);
         fitFabricUvs(apronBibGeometry);
-        const apronBib = new THREE.Mesh(apronBibGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+        const apronBib = new THREE.Mesh(apronBibGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
         apronBib.position.y = 1.05;
         apronBib.castShadow = true;
         group.add(apronBib);
@@ -647,7 +647,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       case "bucket-hat": {
         const crownGeometry = new THREE.CylinderGeometry(0.72, 0.86, 1.14, 48, 16);
         fitFabricUvs(crownGeometry);
-        const crown = new THREE.Mesh(crownGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+        const crown = new THREE.Mesh(crownGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
         crown.position.y = 0.45;
         crown.castShadow = true;
         group.add(crown);
@@ -660,7 +660,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         const brimGeometry = new THREE.ExtrudeGeometry(brimShape, { depth: 0.08, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.025, bevelThickness: 0.025 });
         fitFabricUvs(brimGeometry);
         brimGeometry.rotateX(-Math.PI / 2);
-        const brim = new THREE.Mesh(brimGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+        const brim = new THREE.Mesh(brimGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
         brim.position.y = -0.12;
         brim.castShadow = true;
         group.add(brim);
@@ -683,7 +683,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         // Runner fabric draping down edges
         const runnerGeo = new THREE.BoxGeometry(1.2, 0.04, 2.8, 16, 2, 16);
         fitFabricUvs(runnerGeo);
-        const runner = new THREE.Mesh(runnerGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+        const runner = new THREE.Mesh(runnerGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
         runner.position.y = -0.18;
         runner.castShadow = true;
         group.add(runner);
@@ -694,10 +694,10 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         for (const [index, x] of [-1.2, -0.4, 0.4, 1.2].entries()) {
           const matGeometry = new THREE.BoxGeometry(1.05, 1.65, 0.07, 10, 16, 1);
           fitFabricUvs(matGeometry);
-          const mat = new THREE.Mesh(matGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+          const mat = new THREE.Mesh(matGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
           mat.position.set(x, index % 2 === 0 ? 0 : 0.08, 0.12 - index * 0.08);
           mat.visible = designRef.current.size === "Set of 4" || index === 1 || index === 2;
-          mat.userData.placematIndex = index;
+          mat.userData["placematIndex"] = index;
           mat.castShadow = true;
           mat.receiveShadow = true;
           group.add(mat);
@@ -715,7 +715,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         }
         tapestryGeometry.computeVertexNormals();
         fitFabricUvs(tapestryGeometry);
-        const tapestryMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
+        const tapestryMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture);
         const tapestry = new THREE.Mesh(tapestryGeometry, tapestryMaterial);
         tapestry.castShadow = true;
         group.add(tapestry);
@@ -730,7 +730,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       default: {
         // Fallback smooth display cylinder/box
         const fallbackGeo = new THREE.BoxGeometry(2.2, 2.2, 2.2);
-        const fallbackMesh = new THREE.Mesh(fallbackGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+        const fallbackMesh = new THREE.Mesh(fallbackGeo, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map as THREE.CanvasTexture));
         group.add(fallbackMesh);
         break;
       }
@@ -1075,7 +1075,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     geometry.scale.set(scale.x, scale.y, scale.z);
     geometry.position.y = -productCenterYRef.current + (scale.y - 1) * size.y / 2;
     geometry.traverse((child) => {
-      if (typeof child.userData.placematIndex === "number") child.visible = design.size === "Set of 4" || child.userData.placematIndex === 1 || child.userData.placematIndex === 2;
+      if (typeof child.userData["placematIndex"] === "number") child.visible = design.size === "Set of 4" || child.userData["placematIndex"] === 1 || child.userData["placematIndex"] === 2;
     });
     const plinthRadius = Math.max(1.05, Math.hypot(size.x * scale.x, size.z * scale.z) * 0.34);
     if (plinthRef.current) plinthRef.current.scale.set(plinthRadius / 1.55, 1, plinthRadius / 1.55);

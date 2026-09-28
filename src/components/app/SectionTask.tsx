@@ -65,7 +65,7 @@ export function SectionTaskPanel({ sections }: { sections: SectionId[] }) {
 }
 
 function TaskRow({ section }: { section: SectionId }) {
-  const { state, update } = useProject();
+  const { state, update, canEdit } = useProject();
   const [open, setOpen] = useState(false);
   const meta = sectionById(section);
   const t = state.tasks[section];
