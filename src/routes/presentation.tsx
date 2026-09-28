@@ -176,6 +176,7 @@ function Presenter({ start, onClose }: { start: number; onClose: () => void }) {
   const media = useAssets();
   const slides = buildSlides(state, true, media);
   const [i, setI] = useState(Math.max(0, start));
+  const [direction, setDirection] = useState<"forward" | "backward">("forward");
   const [notes, setNotes] = useState(false);
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -185,8 +186,8 @@ function Presenter({ start, onClose }: { start: number; onClose: () => void }) {
   const part = state.presentation.find((p) => p.key === slide.part)!;
   const planned = state.presentation.reduce((a, p) => a + p.minutes, 0) * 60;
   const partStart = state.presentation.slice(0, state.presentation.indexOf(part)).reduce((a, p) => a + p.minutes, 0) * 60;
-  const next = useCallback(() => setI((x) => Math.min(slides.length - 1, x + 1)), [slides.length]);
-  const prev = useCallback(() => setI((x) => Math.max(0, x - 1)), []);
+  const next = useCallback(() => { setDirection("forward"); setI((x) => Math.min(slides.length - 1, x + 1)); }, [slides.length]);
+  const prev = useCallback(() => { setDirection("backward"); setI((x) => Math.max(0, x - 1)); }, []);
 
   useEffect(() => {
     if (!running) return;
@@ -228,7 +229,7 @@ function Presenter({ start, onClose }: { start: number; onClose: () => void }) {
 
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1 overflow-auto">
-          <div key={idx} className="deck-stage deck-enter" data-tone={slide.tone}>
+          <div key={idx} className={`deck-stage deck-enter-${direction}`} data-tone={slide.tone}>
             <div className="mx-auto max-w-[1400px]">
               <p className="deck-header"><span>{state.company.name} / {part.title}</span><span>{String(idx + 1).padStart(2, "0")} / {slides.length}</span></p>
               {idx !== 0 && <h2 className="deck-title">{slide.title}</h2>}

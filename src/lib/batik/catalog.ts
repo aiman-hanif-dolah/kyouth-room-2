@@ -8,6 +8,7 @@ export const MOTIFS = [
   { id: "ceplok", name: "Ceplok bloom", note: "A floral geometric medallion." },
   { id: "leaf", name: "Daun", note: "A light botanical repeat." },
   { id: "star", name: "Bintang", note: "An eight-point geometric star." },
+  { id: "custom", name: "Your motif", note: "Build a signature repeat from shape, rhythm and colour." },
 ] as const;
 export const PALETTES = [
   { name: "Midnight gold", colours: ["#252663", "#e9b65c", "#f4eddb", "#cd765b"] },
@@ -39,17 +40,27 @@ export const PRODUCTS: StudioProduct[] = [
   { id: "placemats", name: "Table ritual placemats", category: "Home", price: 49, sizes: ["Set of 2", "Set of 4"], materials: ["Cotton", "Linen blend"], description: "Make the everyday table feel considered.", path: "M55 175H260V425H55ZM285 175H490V425H285Z", seams: "M70 190H245V410H70ZM300 190H475V410H300Z" },
   { id: "tapestry", name: "Wall tapestry", category: "Home", price: 149, sizes: ["90 × 120 cm", "120 × 180 cm"], materials: ["Cotton", "Linen blend"], description: "Give a favourite wall its own story.", path: "M135 115H465V475Q300 545 135 475Z", seams: "M150 130H450V462Q300 522 150 462ZM135 145H465" },
 ];
+export const motifShapeSchema = z.enum(["rosette", "diamond", "leaf", "wave", "star"]);
+export const motifCenterSchema = z.enum(["circle", "diamond", "dot", "none"]);
+export const motifLayerSchema = z.object({ id: z.string().uuid(), motif: z.enum(["kawung", "parang", "hibiscus", "bamboo", "mega", "ceplok", "leaf", "star", "custom"]), x: z.number().min(-60).max(120), y: z.number().min(-60).max(120), scale: z.number().min(0.15).max(1), rotation: z.number().min(0).max(360), opacity: z.number().min(0.1).max(1), colour: z.enum(["ink", "detail"]) });
 export const designSchema = z.object({
   name: z.string().max(60), product: z.string(), size: z.string(), material: z.string(),
-  motif: z.enum(["kawung", "parang", "hibiscus", "bamboo", "mega", "ceplok", "leaf", "star"]),
-  secondary: z.enum(["none", "kawung", "parang", "hibiscus", "bamboo", "mega", "ceplok", "leaf", "star"]),
+  motif: z.enum(["kawung", "parang", "hibiscus", "bamboo", "mega", "ceplok", "leaf", "star", "custom"]),
+  customShape: motifShapeSchema.default("rosette"), customCenter: motifCenterSchema.default("circle"), customCount: z.number().int().min(4).max(12).default(8),
+  secondary: z.enum(["none", "kawung", "parang", "hibiscus", "bamboo", "mega", "ceplok", "leaf", "star", "custom"]),
+  secondaryScale: z.number().min(0.15).max(1).default(0.38), secondaryX: z.number().min(-60).max(120).default(34), secondaryY: z.number().min(-60).max(120).default(34), secondaryRotation: z.number().min(0).max(360).default(0), secondaryOpacity: z.number().min(0.1).max(1).default(1),
+  layers: z.array(motifLayerSchema).max(3).default([]),
   ink: z.string().regex(/^#[0-9a-f]{6}$/i), accent: z.string().regex(/^#[0-9a-f]{6}$/i), background: z.string().regex(/^#[0-9a-f]{6}$/i), detail: z.string().regex(/^#[0-9a-f]{6}$/i),
   scale: z.number().min(24).max(120), spacing: z.number().min(0).max(32), rotation: z.number().min(0).max(180), opacity: z.number().min(0.15).max(1),
-  repeat: z.enum(["grid", "brick", "half-drop"]), mirror: z.boolean(), placement: z.enum(["all", "panel", "border"]), border: z.boolean(), texture: z.boolean(),
+  repeat: z.enum(["grid", "brick", "half-drop", "diamond"]), mirror: z.boolean(), placement: z.enum(["all", "panel", "border"]), border: z.boolean(), texture: z.boolean(),
   monogram: z.string().max(16), textSize: z.number().min(14).max(54), textY: z.number().min(180).max(450),
 }).refine((d) => { const p = PRODUCTS.find((x) => x.id === d.product); return !!p && p.sizes.includes(d.size) && p.materials.includes(d.material); }, "Invalid product options");
+const paletteColourSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
+export const customPaletteSchema = z.object({ id: z.string().uuid(), name: z.string().min(1).max(30), colours: z.tuple([paletteColourSchema, paletteColourSchema, paletteColourSchema, paletteColourSchema]) });
 export type Design = z.infer<typeof designSchema>;
-export const DEFAULT_DESIGN: Design = { name: "Midnight bloom", product: "tote", size: "Standard", material: "Canvas", motif: "kawung", secondary: "none", ink: "#252663", accent: "#e9b65c", background: "#f4eddb", detail: "#cd765b", scale: 60, spacing: 6, rotation: 0, opacity: 1, repeat: "grid", mirror: false, placement: "all", border: false, texture: true, monogram: "", textSize: 28, textY: 320 };
+export type MotifLayer = z.infer<typeof motifLayerSchema>;
+export type CustomPalette = z.infer<typeof customPaletteSchema>;
+export const DEFAULT_DESIGN: Design = { name: "Midnight bloom", product: "tote", size: "Standard", material: "Canvas", motif: "kawung", customShape: "rosette", customCenter: "circle", customCount: 8, secondary: "none", secondaryScale: 0.38, secondaryX: 34, secondaryY: 34, secondaryRotation: 0, secondaryOpacity: 1, layers: [], ink: "#252663", accent: "#e9b65c", background: "#f4eddb", detail: "#cd765b", scale: 60, spacing: 6, rotation: 0, opacity: 1, repeat: "grid", mirror: false, placement: "all", border: false, texture: true, monogram: "", textSize: 28, textY: 320 };
 export const ORDER_STAGES = ["Order confirmed", "Printing your design", "Quality check & packing", "Out for delivery", "Delivered"];
 export const PAYMENTS = ["FPX online banking", "Touch 'n Go eWallet", "Card"] as const;
 export const money = (amount: number) => `RM${amount.toFixed(2)}`;

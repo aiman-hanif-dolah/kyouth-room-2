@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronLeft, Minus, Plus, Package, Printer, Truck, Sparkles } from "lucide-react";
+import { Box, Check, ChevronLeft, Minus, Plus, Package, Printer, Truck, Sparkles } from "lucide-react";
 import { useProject, rm } from "@/lib/project/store";
 import { BatikPattern, MOTIFS, PRODUCTS, ProductPreview, type MotifKey, type ProductKind } from "./Batik";
 import type { Design } from "@/lib/batik/catalog";
@@ -55,6 +55,12 @@ export function ProductDemo() {
     material: kind === "scarf" ? "Satin" : kind === "tee" ? "Cotton" : "Canvas",
     motif: previewMotifs[motif],
     secondary: "none",
+    secondaryScale: 0.38,
+    secondaryX: 34,
+    secondaryY: 34,
+    secondaryRotation: 0,
+    secondaryOpacity: 1,
+    layers: [],
     ink: fg,
     accent,
     background: bg,
@@ -124,13 +130,13 @@ export function ProductDemo() {
               {step === "product" && (
                 <div className="absolute right-3 top-3 z-10 flex rounded-full border border-border bg-background/90 p-1 shadow-sm" role="group" aria-label="Product preview mode">
                   {(["2d", "3d"] as const).map((mode) => (
-                    <button key={mode} type="button" aria-pressed={previewMode === mode} onClick={() => setPreviewMode(mode)} className={cn("rounded-full px-3 py-1.5 text-xs font-medium transition-colors", previewMode === mode ? "bg-brand text-brand-foreground" : "text-muted-foreground hover:text-foreground")}>
-                      {mode === "2d" ? "2D preview" : "3D model ✦"}
+                    <button key={mode} type="button" aria-label={mode === "2d" ? "Show 2D product preview" : "Show interactive 3D product model"} aria-pressed={previewMode === mode} onClick={() => setPreviewMode(mode)} className={cn("flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition-colors", previewMode === mode ? "bg-brand text-brand-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                      {mode === "2d" ? "2D preview" : <><Box className="size-3.5" /> Explore in 3D</>}
                     </button>
                   ))}
                 </div>
               )}
-              <div className={step === "product" && previewMode === "3d" ? "h-[340px] w-[290px]" : "h-[300px] w-[260px]"}>
+              <div key={`${step}-${previewMode}-${kind}`} className={cn("deck-preview-arrive", step === "product" && previewMode === "3d" ? "h-[360px] w-[min(100%,360px)]" : "h-[300px] w-[260px]")}>
                 {step === "product" ? <DesignPreview design={previewDesign} mode={previewMode === "3d" ? "3d" : "product"} zoom={previewMode === "3d" ? 0.9 : 1} className={previewMode === "3d" ? "demo-3d-preview" : ""} /> : <ProductPreview kind={kind} motif={motif} fg={fg} bg={bg} accent={accent} scale={scale} />}
               </div>
               {step === "product" && previewMode === "3d" && <p className="deck-demo-cue">Drag the fabric to inspect the silhouette · Pattern applied live</p>}

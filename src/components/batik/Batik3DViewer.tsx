@@ -33,6 +33,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
   const textureRef = useRef<THREE.CanvasTexture | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const isDraggingRef = useRef(false);
+  const activePointerIdRef = useRef<number | null>(null);
   const prevMouseRef = useRef({ x: 0, y: 0 });
   const autoRotateRef = useRef(autoRotate);
   autoRotateRef.current = autoRotate;
@@ -475,11 +476,13 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
 
     // 1. Scene setup
     const scene = new THREE.Scene();
+    scene.background = null;
     sceneRef.current = scene;
 
     // 2. Camera setup
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
     camera.position.set(0, 0, cameraDistanceRef.current / zoom);
+    camera.lookAt(0, 0.12, 0);
     cameraRef.current = camera;
 
     // 3. Renderer setup
@@ -494,43 +497,54 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     setRenderError("");
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setAutoRotate(false);
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    renderer.shadowMap.enabled = false;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
     rendererRef.current = renderer;
 
     container.replaceChildren(renderer.domElement);
 
     // 4. Lighting setup: warm studio studio lighting
-    const ambientLight = new THREE.AmbientLight(0xfff8ee, 1.4);
+    const ambientLight = new THREE.HemisphereLight(0xfff7ea, 0x796b64, 2.1);
     scene.add(ambientLight);
 
     const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
-    keyLight.position.set(3, 5, 4);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 1024;
-    keyLight.shadow.mapSize.height = 1024;
+    keyLight.position.set(-3, 4, 5);
     scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0xd9e5ff, 1.0);
-    fillLight.position.set(-4, 2, -2);
+    const fillLight = new THREE.DirectionalLight(0xffd7ae, 1.65);
+    fillLight.position.set(4, 1.5, 3);
     scene.add(fillLight);
 
-    const floorLight = new THREE.DirectionalLight(0xfef2e0, 0.6);
+    const rimLight = new THREE.DirectionalLight(0xb2c3e4, 2.4);
+    rimLight.position.set(0, 3, -4);
+    scene.add(rimLight);
+
+    const floorLight = new THREE.DirectionalLight(0xfef2e0, 0.8);
     floorLight.position.set(0, -3, 2);
     scene.add(floorLight);
 
-    // Pedestal shadow receiver disc
-    const floorGeo = new THREE.CircleGeometry(2.6, 48);
-    const floorMat = new THREE.ShadowMaterial({ opacity: 0.22 });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.9;
-    floor.receiveShadow = true;
-    scene.add(floor);
+    // Gallery plinth and a soft pool of light ground the product in the studio.
+    const plinth = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.55, 1.68, 0.22, 64),
+      new THREE.MeshStandardMaterial({ color: "#c6b8a6", roughness: 0.78, metalness: 0.02 }),
+    );
+    plinth.position.y = -1.75;
+    plinth.scale.set(1.25, 1, 1.25);
+    scene.add(plinth);
+    const plinthTop = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.56, 1.56, 0.035, 64),
+      new THREE.MeshStandardMaterial({ color: "#f6eee2", roughness: 0.48 }),
+    );
+    plinthTop.position.y = -1.62;
+    plinthTop.scale.set(1.25, 1, 1.25);
+    scene.add(plinthTop);
 
     // 5. Generate Batik texture & product mesh
     setLoading(true);
+    let revealProgress = 0;
     renderBatikCanvas(design).then((canvas) => {
       if (destroyed) return;
 
@@ -555,24 +569,33 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       const size = bounds.getSize(new THREE.Vector3());
       model.position.sub(center);
       modelSizeRef.current = size;
+      const plinthRadius = Math.max(1.05, size.x * 0.66);
+      plinth.scale.set(plinthRadius / 1.55, 1, plinthRadius / 1.55);
+      plinthTop.scale.set(plinthRadius / 1.56, 1, plinthRadius / 1.56);
+      plinth.position.y = -size.y / 2 - 0.12;
+      plinthTop.position.y = -size.y / 2 - 0.0125;
       cameraDistanceRef.current = fittedCameraDistance(camera, size);
       camera.position.set(0, 0, cameraDistanceRef.current / zoomRef.current);
       camera.lookAt(0, 0, 0);
-      floor.position.y = -size.y / 2 - 0.08;
       modelGroupRef.current = model;
       scene.add(model);
+      model.scale.setScalar(0.86);
+      model.rotation.y = -0.22;
       setLoading(false);
     });
 
-    // 6. Interactive Drag Controls (Rotate with mouse / touch)
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
+    // 6. Interactive drag controls for mouse, pen and touch
+    const onPointerDown = (e: PointerEvent) => {
+      if ((e.pointerType === "mouse" && e.button !== 0) || activePointerIdRef.current !== null || !modelGroupRef.current) return;
+      e.preventDefault();
+      activePointerIdRef.current = e.pointerId;
       isDraggingRef.current = true;
       prevMouseRef.current = { x: e.clientX, y: e.clientY };
+      if (domEl.setPointerCapture) domEl.setPointerCapture(e.pointerId);
     };
 
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDraggingRef.current || !modelGroupRef.current) return;
+    const onPointerMove = (e: PointerEvent) => {
+      if (activePointerIdRef.current !== e.pointerId || !modelGroupRef.current) return;
       const dx = e.clientX - prevMouseRef.current.x;
       const dy = e.clientY - prevMouseRef.current.y;
       modelGroupRef.current.rotation.y += dx * 0.012;
@@ -580,24 +603,11 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       prevMouseRef.current = { x: e.clientX, y: e.clientY };
     };
 
-    const onMouseUp = () => {
+    const stopPointerDrag = (e: PointerEvent) => {
+      if (activePointerIdRef.current !== e.pointerId) return;
+      activePointerIdRef.current = null;
       isDraggingRef.current = false;
-    };
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        isDraggingRef.current = true;
-        prevMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      }
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!isDraggingRef.current || !modelGroupRef.current || e.touches.length !== 1) return;
-      const dx = e.touches[0].clientX - prevMouseRef.current.x;
-      const dy = e.touches[0].clientY - prevMouseRef.current.y;
-      modelGroupRef.current.rotation.y += dx * 0.012;
-      modelGroupRef.current.rotation.x = Math.max(-0.6, Math.min(0.6, modelGroupRef.current.rotation.x + dy * 0.008));
-      prevMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      if (domEl.hasPointerCapture?.(e.pointerId)) domEl.releasePointerCapture(e.pointerId);
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -617,12 +627,11 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     domEl.tabIndex = 0;
     domEl.setAttribute("role", "img");
     domEl.setAttribute("aria-label", `${design.name}, interactive 3D ${design.product} preview. Drag to rotate or use the arrow keys.`);
-    domEl.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    domEl.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("touchend", onMouseUp);
+    domEl.addEventListener("pointerdown", onPointerDown);
+    domEl.addEventListener("pointermove", onPointerMove);
+    domEl.addEventListener("pointerup", stopPointerDrag);
+    domEl.addEventListener("pointercancel", stopPointerDrag);
+    domEl.addEventListener("lostpointercapture", stopPointerDrag);
     domEl.addEventListener("keydown", onKeyDown);
 
     // 7. Render Loop
@@ -630,6 +639,13 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       animFrameRef.current = requestAnimationFrame(animate);
       if (modelGroupRef.current && autoRotateRef.current && !isDraggingRef.current) {
         modelGroupRef.current.rotation.y += 0.008;
+      }
+      if (modelGroupRef.current) {
+        const elapsed = performance.now() * 0.001;
+        revealProgress = Math.min(1, revealProgress + 0.025);
+        const reveal = 0.86 + revealProgress * 0.14;
+        modelGroupRef.current.scale.setScalar(reveal);
+        modelGroupRef.current.position.y = Math.sin(elapsed * 1.15) * 0.04;
       }
       renderer.render(scene, camera);
     };
@@ -657,12 +673,11 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       destroyed = true;
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       resizeObserver.disconnect();
-      domEl.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      domEl.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onMouseUp);
+      domEl.removeEventListener("pointerdown", onPointerDown);
+      domEl.removeEventListener("pointermove", onPointerMove);
+      domEl.removeEventListener("pointerup", stopPointerDrag);
+      domEl.removeEventListener("pointercancel", stopPointerDrag);
+      domEl.removeEventListener("lostpointercapture", stopPointerDrag);
       domEl.removeEventListener("keydown", onKeyDown);
       if (modelGroupRef.current) {
         const geometries = new Set<THREE.BufferGeometry>();
@@ -678,6 +693,10 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       }
       textureRef.current?.dispose();
       textureRef.current = null;
+      plinth.geometry.dispose();
+      (plinth.material as THREE.Material).dispose();
+      plinthTop.geometry.dispose();
+      (plinthTop.material as THREE.Material).dispose();
       modelGroupRef.current = null;
       modelSizeRef.current = null;
       sceneRef.current = null;
@@ -733,6 +752,15 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     design.repeat,
     design.mirror,
     design.secondary,
+    design.secondaryScale,
+    design.secondaryX,
+    design.secondaryY,
+    design.secondaryRotation,
+    design.secondaryOpacity,
+    design.layers,
+    design.customShape,
+    design.customCenter,
+    design.customCount,
     design.placement,
     design.border,
     design.monogram,
@@ -749,18 +777,18 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
 
   return (
     <div className={`relative w-full h-full select-none cursor-grab active:cursor-grabbing ${className}`}>
-      <div ref={mountRef} className="w-full h-full min-h-[340px]" aria-label={`${design.name}, interactive 3D ${design.product} preview. Drag to rotate or focus and use the arrow keys.`} />
+      <div ref={mountRef} className="w-full h-full min-h-[340px] touch-none" aria-label={`${design.name}, interactive 3D ${design.product} preview. Drag to rotate or focus and use the arrow keys.`} />
       {renderError && <div className="absolute inset-0 grid place-items-center bg-[#f4eee5] p-5" role="status"><div className="max-w-xs text-center"><p className="text-xs font-semibold text-[#514267]">{renderError}</p><img className="mt-3 max-h-56 w-full object-contain" src={designImage(design)} alt={`${design.name} 2D product preview`} /></div></div>}
 
       {/* Floating 3D Control overlay */}
-      <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+      <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
         <button
           type="button"
           onClick={() => setAutoRotate((prev) => !prev)}
           className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
             autoRotate
-              ? "bg-[#282540] text-[#f4eddb] border-[#282540] shadow-sm"
-              : "bg-white/80 text-[#282540] border-gray-300 hover:bg-white"
+              ? "bg-[#29243a] text-[#fff5e8] border-white/30 shadow-lg backdrop-blur-md"
+              : "bg-white/70 text-[#29243a] border-white/70 hover:bg-white shadow-md backdrop-blur-md"
           }`}
           title="Toggle continuous rotation"
           aria-pressed={autoRotate}
@@ -774,7 +802,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
               modelGroupRef.current.rotation.set(0, 0, 0);
             }
           }}
-          className="px-2 py-1 text-xs rounded-full bg-white/80 text-gray-700 border border-gray-300 hover:bg-white transition-colors"
+          className="px-3 py-1.5 text-xs font-semibold rounded-full bg-white/70 text-[#29243a] border border-white/70 hover:bg-white transition-colors shadow-md backdrop-blur-md"
           title="Reset 3D view orientation"
           aria-label="Reset 3D view orientation"
         >
@@ -788,8 +816,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         </div>
       )}
 
-      <div className="batik-3d-instructions absolute bottom-2 left-3 pointer-events-none text-[10px] text-gray-500 font-medium tracking-wide bg-white/60 px-2 py-0.5 rounded-sm">
-        Drag to inspect 360° · Textured live
+      <div className="batik-3d-instructions absolute bottom-4 left-4 pointer-events-none rounded-full border border-white/50 bg-[#282338]/75 px-3.5 py-2 text-[10px] font-semibold tracking-wide text-[#fff5e8] shadow-lg backdrop-blur-md">
+        <span className="mr-2 text-[#efb985]">✦</span>Drag to explore · Your print, in motion
       </div>
     </div>
   );

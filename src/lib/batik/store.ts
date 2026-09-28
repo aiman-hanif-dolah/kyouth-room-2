@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { DEFAULT_DESIGN, MOTIFS, PALETTES, PRODUCTS, PAYMENTS, ORDER_STAGES, cartItemSchema, cartTotals, designSchema, orderSchema, productFor, savedSchema, unitPrice, money, type Design, type CartItem, type SavedDesign, type StudioOrder, type Category } from "./catalog";
-import { downloadBlob, exportDesign, type PreviewMode } from "./design";
+import { DEFAULT_DESIGN, MOTIFS, PALETTES, PRODUCTS, PAYMENTS, ORDER_STAGES, cartItemSchema, cartTotals, customPaletteSchema, designSchema, motifLayerSchema, orderSchema, productFor, savedSchema, unitPrice, money, type Design, type MotifLayer, type CartItem, type SavedDesign, type StudioOrder, type Category, type CustomPalette } from "./catalog";
+import { downloadBlob, exportDesign, exportProductRange, type PreviewMode } from "./design";
 const KEY = "batik-lab-studio-v1";
-const cacheSchema = z.object({ version: z.literal(1), design: designSchema, saved: z.array(savedSchema).max(100), cart: z.array(cartItemSchema).max(100), orders: z.array(orderSchema).max(100) });
+const cacheSchema = z.object({ version: z.literal(1), design: designSchema, saved: z.array(savedSchema).max(100), cart: z.array(cartItemSchema).max(100), orders: z.array(orderSchema).max(100), palettes: z.array(customPaletteSchema).max(12).default([]) });
+const libraryBackupSchema = z.object({ format: z.literal("batik-lab-library"), version: z.literal(1), current: designSchema.optional(), designs: z.array(savedSchema).max(100), palettes: z.array(customPaletteSchema).max(12) });
 const id = () => crypto.randomUUID();
 const checkoutSchema = z.object({ name: z.string().trim().min(2, "Enter a demo name of at least 2 characters.").max(60), payment: z.enum(PAYMENTS), acknowledged: z.literal(true, { errorMap: () => ({ message: "Confirm that this is a simulated order." }) }) });
 export type StudioTab = "studio" | "collection" | "saved" | "bag" | "orders";
@@ -25,6 +26,7 @@ export function useBatikStudio() {
   const [saved, setSaved] = useState<SavedDesign[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<StudioOrder[]>([]);
+  const [customPalettes, setCustomPalettes] = useState<CustomPalette[]>([]);
   const [ready, setReady] = useState(false);
   const [storageError, setStorageError] = useState("");
   const [notice, setNotice] = useState("");
@@ -52,7 +54,7 @@ export function useBatikStudio() {
         const raw = localStorage.getItem(KEY);
         if (raw) {
           const value = cacheSchema.parse(JSON.parse(raw));
-          setHistory({ past: [], current: value.design, future: [] }); setSaved(value.saved); setCart(value.cart); setOrders(value.orders);
+          setHistory({ past: [], current: value.design, future: [] }); setSaved(value.saved); setCart(value.cart); setOrders(value.orders); setCustomPalettes(value.palettes);
         }
         if (linked.found) setNotice("That shared design link is invalid or no longer supported. Your saved studio was kept.");
       }
@@ -61,9 +63,9 @@ export function useBatikStudio() {
   }, []);
   useEffect(() => {
     if (!ready || storageError) return;
-    try { localStorage.setItem(KEY, JSON.stringify({ version: 1, design, saved, cart, orders })); }
+    try { localStorage.setItem(KEY, JSON.stringify({ version: 1, design, saved, cart, orders, palettes: customPalettes })); }
     catch { setStorageError("Browser storage is unavailable or full. Your work stays in this session. Download your designs to keep a copy."); }
-  }, [ready, design, saved, cart, orders, storageError]);
+  }, [ready, design, saved, cart, orders, customPalettes, storageError]);
   const replace = (next: Design) => setHistory((h) => ({ past: [...h.past, h.current].slice(-60), current: next, future: [] }));
   const change = (patch: Partial<Design>) => setHistory((h) => {
     const next = designSchema.safeParse({ ...h.current, ...patch });
@@ -79,6 +81,19 @@ export function useBatikStudio() {
     const p = PALETTES[index]; if (!p) return;
     change({ ink: p.colours[0], accent: p.colours[1], background: p.colours[2], detail: p.colours[3] });
   };
+  const savePalette = () => {
+    const colours = [design.ink, design.accent, design.background, design.detail] as CustomPalette["colours"];
+    if (customPalettes.some((item) => item.colours.every((colour, index) => colour.toLowerCase() === colours[index].toLowerCase()))) {
+      setNotice("These colours are already on your palette shelf.");
+      return;
+    }
+    if (customPalettes.length >= 12) { setNotice("Your palette shelf is full. Remove a palette to make room."); return; }
+    const savedPalette = customPaletteSchema.parse({ id: id(), name: `My palette ${customPalettes.length + 1}`, colours });
+    setCustomPalettes((items) => [...items, savedPalette]);
+    setNotice(`${savedPalette.name} saved to your palette shelf.`);
+  };
+  const applyCustomPalette = (savedPalette: CustomPalette) => change({ ink: savedPalette.colours[0], accent: savedPalette.colours[1], background: savedPalette.colours[2], detail: savedPalette.colours[3] });
+  const removePalette = (paletteId: string) => setCustomPalettes((items) => items.filter((item) => item.id !== paletteId));
   const shuffle = () => {
     const p = PALETTES[Math.floor(Math.random() * PALETTES.length)];
     const m = MOTIFS[Math.floor(Math.random() * MOTIFS.length)];
@@ -98,6 +113,72 @@ export function useBatikStudio() {
     setSaved((items) => [{ ...item, id: id(), design: { ...item.design, name: `${item.design.name.slice(0,53)} copy` }, date: new Date().toISOString() }, ...items]);
   };
   const removeSaved = (designId: string) => setSaved((items) => items.filter((x) => x.id !== designId));
+  const downloadLibraryBackup = () => {
+    const backup = { format: "batik-lab-library", version: 1, current: design, designs: saved, palettes: customPalettes };
+    downloadBlob(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }), "batik-lab-library.json");
+    setNotice("Your saved designs and custom palettes were backed up.");
+  };
+  const importLibraryBackup = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) { setNotice("This backup is larger than 5 MB and was not imported."); return; }
+    try {
+      const parsed = libraryBackupSchema.safeParse(JSON.parse(await file.text()));
+      if (!parsed.success) { setNotice("That file is not a supported Batik Lab library backup."); return; }
+      const incoming = parsed.data;
+      const designsById = new Map([...incoming.designs, ...saved].map((item) => [item.id, item]));
+      const palettesById = new Map([...incoming.palettes, ...customPalettes].map((item) => [item.id, item]));
+      const mergedDesigns = [...designsById.values()].slice(0, 100);
+      const mergedPalettes = [...palettesById.values()].slice(0, 12);
+      setSaved(mergedDesigns);
+      setCustomPalettes(mergedPalettes);
+      if (incoming.current) {
+        replace(incoming.current);
+        setMode("product");
+        setTab("studio");
+      }
+      const restoredCurrent = incoming.current ? " Active design restored." : "";
+      setNotice(`Backup imported: ${Math.max(0, mergedDesigns.length - saved.length)} designs and ${Math.max(0, mergedPalettes.length - customPalettes.length)} palettes added.${restoredCurrent} Your bag and order history were kept.`);
+    } catch {
+      setNotice("The backup could not be read. Your current library was kept unchanged.");
+    }
+  };
+  const addLayer = () => {
+    if (design.layers.length >= 3) { setNotice("This design has three extra motif layers. Adjust or remove one to make room."); return; }
+    const positions = [{ x: 4, y: 4 }, { x: 38, y: 4 }, { x: 4, y: 38 }];
+    const position = positions[design.layers.length];
+    const layer = motifLayerSchema.parse({ id: id(), motif: ["star", "leaf", "ceplok"][design.layers.length], ...position, scale: 0.3, rotation: 0, opacity: 1, colour: "detail" });
+    change({ layers: [...design.layers, layer] });
+    setNotice("Motif layer added. Shape, placement and ink can be adjusted independently.");
+  };
+  const updateLayer = (layerId: string, patch: Partial<MotifLayer>) => change({ layers: design.layers.map((layer) => layer.id === layerId ? { ...layer, ...patch } : layer) });
+  const patternPositionAtPoint = (pointX: number, pointY: number) => {
+    const radians = -(design.rotation + (design.repeat === "diamond" ? 45 : 0)) * Math.PI / 180;
+    const offsetX = pointX - 300;
+    const offsetY = pointY - 300;
+    const patternX = Math.cos(radians) * offsetX - Math.sin(radians) * offsetY + 300;
+    const patternY = Math.sin(radians) * offsetX + Math.cos(radians) * offsetY + 300;
+    const tile = design.scale + design.spacing;
+    const periodX = design.repeat === "half-drop" ? tile * 2 : tile;
+    const periodY = design.repeat === "brick" ? tile * 2 : tile;
+    const positiveX = ((patternX % periodX) + periodX) % periodX;
+    const positiveY = ((patternY % periodY) + periodY) % periodY;
+    const shiftX = design.repeat === "brick" && positiveY >= tile ? tile / 2 : 0;
+    const shiftY = design.repeat === "half-drop" && positiveX >= tile ? tile / 2 : 0;
+    const cellX = ((positiveX - shiftX + tile) % tile + tile) % tile;
+    const cellY = ((positiveY - shiftY + tile) % tile + tile) % tile;
+    const scale = design.scale / 60;
+    const x = Math.max(-60, Math.min(120, Math.round((cellX - design.spacing / 2) / scale - 30)));
+    const y = Math.max(-60, Math.min(120, Math.round((cellY - design.spacing / 2) / scale - 30)));
+    return { x, y };
+  };
+  const placeLayerAtPatternPoint = (layerId: string, pointX: number, pointY: number) => {
+    const position = patternPositionAtPoint(pointX, pointY);
+    if (layerId === "secondary") change({ secondaryX: position.x, secondaryY: position.y });
+    else updateLayer(layerId, position);
+  };
+  const removeLayer = (layerId: string) => {
+    change({ layers: design.layers.filter((layer) => layer.id !== layerId) });
+    setNotice("Motif layer removed.");
+  };
   const addToCart = () => {
     if (cart.length >= 100) { setNotice("Your bag is full. Remove an item before adding another."); return; }
     setCart((items) => [...items, { id: id(), design: { ...design, name: design.name.trim() || "Untitled design" }, quantity: 1 }]);
@@ -126,6 +207,12 @@ export function useBatikStudio() {
     catch { setNotice("Download could not be created. Try SVG or a different browser."); }
     finally { setExporting(false); }
   };
+  const downloadProductRange = async (format: "svg" | "png") => {
+    setExporting(true);
+    try { await exportProductRange(design, format); setNotice(`Product range ${format.toUpperCase()} downloaded with all ${PRODUCTS.length} canvases.`); }
+    catch { setNotice("Product-range export could not be created. Try SVG or a different browser."); }
+    finally { setExporting(false); }
+  };
   const share = () => {
     const url = new URL(window.location.href);
     url.searchParams.set("design", JSON.stringify({ ...design, name: design.name.trim() || "Untitled design" }));
@@ -144,7 +231,7 @@ export function useBatikStudio() {
   };
   const closeShare = () => { setShareLink(""); setShareCopied(false); setShareCopyError(false); };
   return {
-    design, product: productFor(design), price: unitPrice(design), motif: MOTIFS.find((x) => x.id === design.motif)!, saved, cart, orders, ready, storageError, notice, tab, setTab, category, setCategory, query, setQuery, mode, setMode, zoom, setZoom, name, setName, payment, setPayment, acknowledged, setAcknowledged, checkoutError, exporting, totals, shareLink, shareCopied, shareCopyError, share, copyShareLink, closeShare, change, selectProduct, palette, shuffle, undo, redo, canUndo: !!history.past.length, canRedo: !!history.future.length, reset: () => replace(DEFAULT_DESIGN), save, load, duplicate, removeSaved, addToCart, quantity, removeItem, editItem, checkout, advance, receipt, download,
+    design, product: productFor(design), price: unitPrice(design), motif: MOTIFS.find((x) => x.id === design.motif)!, saved, customPalettes, cart, orders, ready, storageError, notice, tab, setTab, category, setCategory, query, setQuery, mode, setMode, zoom, setZoom, name, setName, payment, setPayment, acknowledged, setAcknowledged, checkoutError, exporting, totals, shareLink, shareCopied, shareCopyError, share, copyShareLink, closeShare, change, selectProduct, palette, savePalette, applyCustomPalette, removePalette, shuffle, undo, redo, canUndo: !!history.past.length, canRedo: !!history.future.length, reset: () => replace(DEFAULT_DESIGN), save, load, duplicate, removeSaved, downloadLibraryBackup, importLibraryBackup, addLayer, updateLayer, patternPositionAtPoint, placeLayerAtPatternPoint, removeLayer, addToCart, quantity, removeItem, editItem, checkout, advance, receipt, download, downloadProductRange,
     products: PRODUCTS.filter((p) => (category === "All" || p.category === category) && `${p.name} ${p.description}`.toLowerCase().includes(query.toLowerCase())),
   };
 }
