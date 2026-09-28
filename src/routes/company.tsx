@@ -1,10 +1,68 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus, Star } from "lucide-react";
+import { Download, ExternalLink, Link2, Plus, Star, Trash2 } from "lucide-react";
 import { useProject, uid } from "@/lib/project/store";
-import { AssetGallery, SlotImageSlot, StorageNote } from "@/components/app/Assets";
-import { Area, Badge, Button, Card, Field, Fictional, newImage, PageHeader, RowControls, StringList, move, AiNotConnected } from "@/components/app/kit";
+import { AssetGallery, StorageNote } from "@/components/app/Assets";
+import { Area, Badge, Button, Card, CopyButton, Field, Fictional, newImage, PageHeader, RowControls, StringList, move, AiNotConnected } from "@/components/app/kit";
+import { Lightbox } from "@/components/app/Lightbox";
 import { SectionTaskPanel } from "@/components/app/SectionTask";
+import type { ImageItem } from "@/lib/project/types";
 import { cn } from "@/lib/utils";
+
+const inputCls = "w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring";
+
+/** Editable image-generation prompt with a copy button. */
+function PromptBox({ label, value, onChange, onDelete }: { label: string; value: string; onChange: (v: string) => void; onDelete?: () => void }) {
+  return (
+    <div className="rounded-lg border border-border bg-background p-3">
+      <textarea aria-label={label} rows={2} value={value} placeholder="Describe the image to generate…" onChange={(e) => onChange(e.target.value)} className={cn(inputCls, "resize-y")} />
+      <div className="mt-1 flex items-center justify-between">
+        <span className="text-[11px] text-muted-foreground">{label}</span>
+        <div className="flex items-center gap-1">
+          <CopyButton text={value} />
+          {onDelete && (
+            <Button size="sm" variant="danger" aria-label="Remove prompt" onClick={onDelete}>
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Paste-an-image-link field. */
+function LinkInput({ onAdd }: { onAdd: (url: string) => void }) {
+  const [url, setUrl] = useState("");
+  return (
+    <div className="flex gap-1.5">
+      <input aria-label="Image URL" placeholder="https://… image link" value={url} onChange={(e) => setUrl(e.target.value)} className={inputCls} />
+      <Button size="sm" disabled={!/^https?:\/\//.test(url)} onClick={() => { onAdd(url); setUrl(""); }}>
+        <Link2 className="size-3.5" /> Use
+      </Button>
+    </div>
+  );
+}
+
+/** Card for an externally linked image: preview, caption, open, download, clear. */
+function LinkedImage({ item, onChange, onClear }: { item: ImageItem; onChange: (v: ImageItem) => void; onClear: () => void }) {
+  const [view, setView] = useState(false);
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-2.5">
+      <button type="button" onClick={() => setView(true)} aria-label="View full size" className="block cursor-zoom-in overflow-hidden rounded-md bg-elevated/50">
+        <img src={item.url} alt={item.caption || "Linked visual"} className="max-h-56 w-full object-contain" />
+      </button>
+      <input aria-label="Caption" value={item.caption} placeholder="Caption" onChange={(e) => onChange({ ...item, caption: e.target.value })} className={inputCls} />
+      <div className="flex items-center gap-1">
+        <a href={item.url} target="_blank" rel="noreferrer" aria-label="Open" className="rounded p-1.5 text-muted-foreground hover:text-foreground"><ExternalLink className="size-3.5" /></a>
+        <a href={item.url} download aria-label="Download" className="rounded p-1.5 text-muted-foreground hover:text-foreground"><Download className="size-3.5" /></a>
+        <Button size="sm" variant="danger" className="ml-auto" aria-label="Clear linked image" onClick={onClear}><Trash2 className="size-3.5" /></Button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">Linked images are not added to the presentation. Upload the file below to include it in the slides.</p>
+      {view && <Lightbox items={[{ src: item.url, alt: item.caption || "Linked visual", title: item.caption }]} index={0} onClose={() => setView(false)} />}
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/company")({
   head: () => ({
