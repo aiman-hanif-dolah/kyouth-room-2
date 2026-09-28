@@ -77,7 +77,7 @@ export const Route = createFileRoute("/company")({
 });
 
 function CompanyPage() {
-  const { state, update } = useProject();
+  const { state, update, canEdit } = useProject();
   const c = state.company;
   const u1 = (fn: (d: typeof c) => void) => update((d) => fn(d.company), "s1");
   const u2 = (fn: (d: typeof c) => void) => update((d) => fn(d.company), "s2");
@@ -95,18 +95,54 @@ function CompanyPage() {
           {c.ideas.map((idea, i) => (
             <div key={idea.id} className="grid gap-2 rounded-lg border border-border bg-background p-3 md:grid-cols-[28px_160px_1fr_auto]">
               <span className="pt-2 font-mono text-xs text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
-              <input aria-label="Idea name" value={idea.name} onChange={(e) => u1((d) => { d.ideas[i].name = e.target.value; })} className="rounded-md border border-input bg-card px-2 py-1.5 text-sm" />
-              <input aria-label="Idea summary" value={idea.summary} onChange={(e) => u1((d) => { d.ideas[i].summary = e.target.value; })} className="rounded-md border border-input bg-card px-2 py-1.5 text-sm" />
+              <input
+                aria-label="Idea name"
+                value={idea.name}
+                readOnly={!canEdit}
+                disabled={!canEdit}
+                onChange={(e) => u1((d) => { d.ideas[i].name = e.target.value; })}
+                className={cn("rounded-md border border-input bg-card px-2 py-1.5 text-sm", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default")}
+              />
+              <input
+                aria-label="Idea summary"
+                value={idea.summary}
+                readOnly={!canEdit}
+                disabled={!canEdit}
+                onChange={(e) => u1((d) => { d.ideas[i].summary = e.target.value; })}
+                className={cn("rounded-md border border-input bg-card px-2 py-1.5 text-sm", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default")}
+              />
               <div className="flex items-center gap-2">
                 <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <input type="checkbox" checked={idea.shortlisted} onChange={(e) => u1((d) => { d.ideas[i].shortlisted = e.target.checked; })} className="accent-[var(--brand)]" /> Shortlist
+                  <input
+                    type="checkbox"
+                    checked={idea.shortlisted}
+                    disabled={!canEdit}
+                    onChange={(e) => u1((d) => { d.ideas[i].shortlisted = e.target.checked; })}
+                    className="accent-[var(--brand)]"
+                  /> Shortlist
                 </label>
                 <RowControls index={i} length={c.ideas.length} onMove={(dir) => u1((d) => move(d.ideas, i, dir))} onDelete={() => u1((d) => { d.ideas.splice(i, 1); })} />
               </div>
               {idea.shortlisted && (
                 <div className="grid gap-2 md:col-span-4 md:grid-cols-2 md:pl-[36px]">
-                  <input aria-label="Pros" placeholder="Pros" value={idea.pros} onChange={(e) => u1((d) => { d.ideas[i].pros = e.target.value; })} className="rounded-md border border-success/30 bg-card px-2 py-1.5 text-xs" />
-                  <input aria-label="Cons" placeholder="Cons" value={idea.cons} onChange={(e) => u1((d) => { d.ideas[i].cons = e.target.value; })} className="rounded-md border border-destructive/30 bg-card px-2 py-1.5 text-xs" />
+                  <input
+                    aria-label="Pros"
+                    placeholder="Pros"
+                    value={idea.pros}
+                    readOnly={!canEdit}
+                    disabled={!canEdit}
+                    onChange={(e) => u1((d) => { d.ideas[i].pros = e.target.value; })}
+                    className={cn("rounded-md border border-success/30 bg-card px-2 py-1.5 text-xs", !canEdit && "border-transparent bg-transparent px-0 cursor-default")}
+                  />
+                  <input
+                    aria-label="Cons"
+                    placeholder="Cons"
+                    value={idea.cons}
+                    readOnly={!canEdit}
+                    disabled={!canEdit}
+                    onChange={(e) => u1((d) => { d.ideas[i].cons = e.target.value; })}
+                    className={cn("rounded-md border border-destructive/30 bg-card px-2 py-1.5 text-xs", !canEdit && "border-transparent bg-transparent px-0 cursor-default")}
+                  />
                 </div>
               )}
             </div>
@@ -122,19 +158,63 @@ function CompanyPage() {
             return (
               <div key={k.id} className={cn("rounded-lg border bg-background p-4", on ? "border-brand shadow-ring" : "border-border")}>
                 <div className="flex items-center justify-between gap-2">
-                  <input aria-label="Concept name" value={k.name} onChange={(e) => u1((d) => { d.concepts[i].name = e.target.value; })} className="min-w-0 flex-1 bg-transparent text-base font-medium focus:outline-none" />
-                  {on ? <Badge tone="brand"><Star className="size-3" /> Selected</Badge> : <Button size="sm" onClick={() => u1((d) => { d.selectedConceptId = k.id; d.productName = k.name; })}>Select</Button>}
+                  <input
+                    aria-label="Concept name"
+                    value={k.name}
+                    readOnly={!canEdit}
+                    disabled={!canEdit}
+                    onChange={(e) => u1((d) => { d.concepts[i].name = e.target.value; })}
+                    className={cn("min-w-0 flex-1 bg-transparent text-base font-medium focus:outline-none", !canEdit && "cursor-default")}
+                  />
+                  {on ? <Badge tone="brand"><Star className="size-3" /> Selected</Badge> : canEdit ? <Button size="sm" onClick={() => u1((d) => { d.selectedConceptId = k.id; d.productName = k.name; })}>Select</Button> : null}
                 </div>
-                <textarea aria-label="Pitch" rows={2} value={k.pitch} onChange={(e) => u1((d) => { d.concepts[i].pitch = e.target.value; })} className="mt-2 w-full resize-none bg-transparent text-xs text-subtle focus:outline-none" />
+                <textarea
+                  aria-label="Pitch"
+                  rows={2}
+                  value={k.pitch}
+                  readOnly={!canEdit}
+                  disabled={!canEdit}
+                  onChange={(e) => u1((d) => { d.concepts[i].pitch = e.target.value; })}
+                  className={cn("mt-2 w-full resize-none bg-transparent text-xs text-subtle focus:outline-none", !canEdit && "cursor-default")}
+                />
                 <dl className="mt-2 space-y-1.5 text-xs">
-                  <div><dt className="text-muted-foreground">Target customers</dt><dd><input aria-label="Target customers" value={k.customers} onChange={(e) => u1((d) => { d.concepts[i].customers = e.target.value; })} className="w-full bg-transparent focus:outline-none" /></dd></div>
-                  <div><dt className="text-muted-foreground">Monetisation</dt><dd><input aria-label="Monetisation" value={k.monetisation} onChange={(e) => u1((d) => { d.concepts[i].monetisation = e.target.value; })} className="w-full bg-transparent focus:outline-none" /></dd></div>
+                  <div>
+                    <dt className="text-muted-foreground">Target customers</dt>
+                    <dd>
+                      <input
+                        aria-label="Target customers"
+                        value={k.customers}
+                        readOnly={!canEdit}
+                        disabled={!canEdit}
+                        onChange={(e) => u1((d) => { d.concepts[i].customers = e.target.value; })}
+                        className={cn("w-full bg-transparent focus:outline-none", !canEdit && "cursor-default")}
+                      />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Monetisation</dt>
+                    <dd>
+                      <input
+                        aria-label="Monetisation"
+                        value={k.monetisation}
+                        readOnly={!canEdit}
+                        disabled={!canEdit}
+                        onChange={(e) => u1((d) => { d.concepts[i].monetisation = e.target.value; })}
+                        className={cn("w-full bg-transparent focus:outline-none", !canEdit && "cursor-default")}
+                      />
+                    </dd>
+                  </div>
                 </dl>
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   {(["appeal", "feasibility", "prototype"] as const).map((key) => (
                     <label key={key} className="text-[11px] text-muted-foreground">
                       {key === "prototype" ? "Prototype" : key[0].toUpperCase() + key.slice(1)}
-                      <select value={k[key]} onChange={(e) => u1((d) => { d.concepts[i][key] = Number(e.target.value); })} className="mt-0.5 w-full rounded-md border border-input bg-card px-1.5 py-1 text-sm text-foreground">
+                      <select
+                        value={k[key]}
+                        disabled={!canEdit}
+                        onChange={(e) => u1((d) => { d.concepts[i][key] = Number(e.target.value); })}
+                        className={cn("mt-0.5 w-full rounded-md border border-input bg-card px-1.5 py-1 text-sm text-foreground", !canEdit && "border-transparent bg-transparent px-0 appearance-none pointer-events-none cursor-default")}
+                      >
                         {[1, 2, 3, 4, 5].map((n) => <option key={n}>{n}</option>)}
                       </select>
                     </label>
@@ -172,12 +252,28 @@ function CompanyPage() {
           <div className="grid gap-2 sm:grid-cols-2">
             {c.palette.map((sw, i) => (
               <div key={sw.id} className="flex items-center gap-2 rounded-lg border border-border bg-background p-2">
-                <input type="color" aria-label={`${sw.name} colour`} value={sw.hex} onChange={(e) => u1((d) => { d.palette[i].hex = e.target.value; })} className="size-10 cursor-pointer rounded border-0 bg-transparent" />
+                <input
+                  type="color"
+                  aria-label={`${sw.name} colour`}
+                  value={sw.hex}
+                  disabled={!canEdit}
+                  onChange={(e) => u1((d) => { d.palette[i].hex = e.target.value; })}
+                  className={cn("size-10 rounded border-0 bg-transparent", canEdit ? "cursor-pointer" : "cursor-default")}
+                />
                 <div className="min-w-0 flex-1">
-                  <input aria-label="Colour name" value={sw.name} onChange={(e) => u1((d) => { d.palette[i].name = e.target.value; })} className="w-full bg-transparent text-sm focus:outline-none" />
+                  <input
+                    aria-label="Colour name"
+                    value={sw.name}
+                    readOnly={!canEdit}
+                    disabled={!canEdit}
+                    onChange={(e) => u1((d) => { d.palette[i].name = e.target.value; })}
+                    className={cn("w-full bg-transparent text-sm focus:outline-none", !canEdit && "cursor-default")}
+                  />
                   <p className="font-mono text-[11px] text-muted-foreground">{sw.hex}</p>
                 </div>
-                <Button size="sm" variant="danger" aria-label="Remove colour" onClick={() => u1((d) => { d.palette.splice(i, 1); })}>×</Button>
+                {canEdit && (
+                  <Button size="sm" variant="danger" aria-label="Remove colour" onClick={() => u1((d) => { d.palette.splice(i, 1); })}>×</Button>
+                )}
               </div>
             ))}
           </div>
@@ -245,12 +341,34 @@ function CompanyPage() {
               <div className="flex items-start gap-3">
                 <div className="grid size-10 shrink-0 place-items-center rounded-full bg-elevated text-sm">{f.name.slice(0, 1)}</div>
                 <div className="min-w-0 flex-1 space-y-1">
-                  <input aria-label="Founder name" value={f.name} onChange={(e) => u2((d) => { d.founders[i].name = e.target.value; })} className="w-full bg-transparent text-sm font-medium focus:outline-none" />
-                  <input aria-label="Founder role" value={f.role} onChange={(e) => u2((d) => { d.founders[i].role = e.target.value; })} className="w-full bg-transparent text-xs text-brand-soft focus:outline-none" />
+                  <input
+                    aria-label="Founder name"
+                    value={f.name}
+                    readOnly={!canEdit}
+                    disabled={!canEdit}
+                    onChange={(e) => u2((d) => { d.founders[i].name = e.target.value; })}
+                    className={cn("w-full bg-transparent text-sm font-medium focus:outline-none", !canEdit && "cursor-default")}
+                  />
+                  <input
+                    aria-label="Founder role"
+                    value={f.role}
+                    readOnly={!canEdit}
+                    disabled={!canEdit}
+                    onChange={(e) => u2((d) => { d.founders[i].role = e.target.value; })}
+                    className={cn("w-full bg-transparent text-xs text-brand-soft focus:outline-none", !canEdit && "cursor-default")}
+                  />
                 </div>
                 <RowControls index={i} length={c.founders.length} onMove={(dir) => u2((d) => move(d.founders, i, dir))} onDelete={() => u2((d) => { d.founders.splice(i, 1); })} />
               </div>
-              <textarea aria-label="Founder bio" rows={3} value={f.bio} onChange={(e) => u2((d) => { d.founders[i].bio = e.target.value; })} className="mt-2 w-full resize-none rounded-md border border-input bg-card p-2 text-xs text-subtle" />
+              <textarea
+                aria-label="Founder bio"
+                rows={3}
+                value={f.bio}
+                readOnly={!canEdit}
+                disabled={!canEdit}
+                onChange={(e) => u2((d) => { d.founders[i].bio = e.target.value; })}
+                className={cn("mt-2 w-full resize-none rounded-md border border-input bg-card p-2 text-xs text-subtle", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default")}
+              />
             </div>
           ))}
         </div>

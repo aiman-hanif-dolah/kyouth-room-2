@@ -28,7 +28,7 @@ export const PLATFORMS: { key: Platform; label: string; need: number; kind: stri
 ];
 
 function MarketingPage() {
-  const { state, update } = useProject();
+  const { state, update, canEdit } = useProject();
   const m = state.marketing;
   const u = (fn: (d: typeof m) => void) => update((d) => fn(d.marketing), "s6");
   const [tab, setTab] = useState<Platform>("instagram");
@@ -54,8 +54,22 @@ function MarketingPage() {
             {m.pillars.map((p, i) => (
               <div key={p.id} className="flex gap-2 rounded-lg border border-border bg-background p-2">
                 <div className="flex-1">
-                  <input aria-label="Pillar title" value={p.title} onChange={(e) => u((d) => { d.pillars[i].title = e.target.value; })} className="w-full bg-transparent text-sm font-medium focus:outline-none" />
-                  <input aria-label="Pillar description" value={p.description} onChange={(e) => u((d) => { d.pillars[i].description = e.target.value; })} className="w-full bg-transparent text-xs text-muted-foreground focus:outline-none" />
+                  <input
+                    aria-label="Pillar title"
+                    value={p.title}
+                    readOnly={!canEdit}
+                    disabled={!canEdit}
+                    onChange={(e) => u((d) => { d.pillars[i].title = e.target.value; })}
+                    className={cn("w-full bg-transparent text-sm font-medium focus:outline-none", !canEdit && "cursor-default")}
+                  />
+                  <input
+                    aria-label="Pillar description"
+                    value={p.description}
+                    readOnly={!canEdit}
+                    disabled={!canEdit}
+                    onChange={(e) => u((d) => { d.pillars[i].description = e.target.value; })}
+                    className={cn("w-full bg-transparent text-xs text-muted-foreground focus:outline-none", !canEdit && "cursor-default")}
+                  />
                 </div>
                 <RowControls index={i} length={m.pillars.length} onMove={(dir) => u((d) => move(d.pillars, i, dir))} onDelete={() => u((d) => { d.pillars.splice(i, 1); })} />
               </div>
@@ -66,9 +80,30 @@ function MarketingPage() {
           <div className="space-y-1">
             {m.schedule.map((r, i) => (
               <div key={r.id} className="grid grid-cols-[90px_90px_1fr_auto] items-center gap-1 border-b border-border py-1 text-sm">
-                <input aria-label="Day" value={r.day} onChange={(e) => u((d) => { d.schedule[i].day = e.target.value; })} className="bg-transparent focus:outline-none" />
-                <input aria-label="Platform" value={r.platform} onChange={(e) => u((d) => { d.schedule[i].platform = e.target.value; })} className="bg-transparent text-brand-soft focus:outline-none" />
-                <input aria-label="Content" value={r.content} onChange={(e) => u((d) => { d.schedule[i].content = e.target.value; })} className="bg-transparent text-subtle focus:outline-none" />
+                <input
+                  aria-label="Day"
+                  value={r.day}
+                  readOnly={!canEdit}
+                  disabled={!canEdit}
+                  onChange={(e) => u((d) => { d.schedule[i].day = e.target.value; })}
+                  className={cn("bg-transparent focus:outline-none", !canEdit && "cursor-default")}
+                />
+                <input
+                  aria-label="Platform"
+                  value={r.platform}
+                  readOnly={!canEdit}
+                  disabled={!canEdit}
+                  onChange={(e) => u((d) => { d.schedule[i].platform = e.target.value; })}
+                  className={cn("bg-transparent text-brand-soft focus:outline-none", !canEdit && "cursor-default")}
+                />
+                <input
+                  aria-label="Content"
+                  value={r.content}
+                  readOnly={!canEdit}
+                  disabled={!canEdit}
+                  onChange={(e) => u((d) => { d.schedule[i].content = e.target.value; })}
+                  className={cn("bg-transparent text-subtle focus:outline-none", !canEdit && "cursor-default")}
+                />
                 <RowControls index={i} length={m.schedule.length} onMove={(dir) => u((d) => move(d.schedule, i, dir))} onDelete={() => u((d) => { d.schedule.splice(i, 1); })} />
               </div>
             ))}
@@ -87,7 +122,9 @@ function MarketingPage() {
             </button>
           );
         })}
-        <Button size="sm" className="ml-auto" onClick={() => u((d) => { d.samples.push({ id: uid(), platform: tab, title: `New ${plat.label} ${plat.kind}`, body: "", cta: "", imagePrompt: "", imageUrl: "" }); })}><Plus className="size-3.5" /> Add {plat.label} {plat.kind}</Button>
+        {canEdit && (
+          <Button size="sm" className="ml-auto" onClick={() => u((d) => { d.samples.push({ id: uid(), platform: tab, title: `New ${plat.label} ${plat.kind}`, body: "", cta: "", imagePrompt: "", imageUrl: "" }); })}><Plus className="size-3.5" /> Add {plat.label} {plat.kind}</Button>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -102,10 +139,33 @@ function MarketingPage() {
                   <Badge tone="brand">{plat.label} {plat.kind} {k + 1}</Badge>
                   <RowControls index={k} length={list.length} onMove={(dir) => u((d) => { const j = list[k + dir]?.i; if (j !== undefined) [d.samples[i], d.samples[j]] = [d.samples[j], d.samples[i]]; })} onDelete={() => u((d) => { d.samples.splice(i, 1); })} />
                 </div>
-                <input aria-label="Title" value={s.title} onChange={(e) => u((d) => { d.samples[i].title = e.target.value; })} className="w-full bg-transparent text-base font-medium focus:outline-none" />
-                <textarea aria-label="Body" rows={tab === "tiktok" ? 7 : 4} value={s.body} onChange={(e) => u((d) => { d.samples[i].body = e.target.value; })} className="w-full resize-y rounded-md border border-input bg-background p-2 text-sm leading-relaxed" />
-                {!s.body.trim() && <p className="text-[11px] text-warning">Not completed yet</p>}
-                <input aria-label="Call to action" value={s.cta} placeholder="CTA / hashtags" onChange={(e) => u((d) => { d.samples[i].cta = e.target.value; })} className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-brand-soft" />
+                <input
+                  aria-label="Title"
+                  value={s.title}
+                  readOnly={!canEdit}
+                  disabled={!canEdit}
+                  onChange={(e) => u((d) => { d.samples[i].title = e.target.value; })}
+                  className={cn("w-full bg-transparent text-base font-medium focus:outline-none", !canEdit && "cursor-default")}
+                />
+                <textarea
+                  aria-label="Body"
+                  rows={tab === "tiktok" ? 7 : 4}
+                  value={s.body}
+                  readOnly={!canEdit}
+                  disabled={!canEdit}
+                  onChange={(e) => u((d) => { d.samples[i].body = e.target.value; })}
+                  className={cn("w-full resize-y rounded-md border border-input bg-background p-2 text-sm leading-relaxed", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default resize-none")}
+                />
+                {!s.body.trim() && canEdit && <p className="text-[11px] text-warning">Not completed yet</p>}
+                <input
+                  aria-label="Call to action"
+                  value={s.cta}
+                  placeholder={canEdit ? "CTA / hashtags" : ""}
+                  readOnly={!canEdit}
+                  disabled={!canEdit}
+                  onChange={(e) => u((d) => { d.samples[i].cta = e.target.value; })}
+                  className={cn("w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-brand-soft", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default")}
+                />
                 <div className="flex justify-end"><CopyButton text={`${s.title}\n\n${s.body}\n\n${s.cta}`} label="Copy post" /></div>
               </div>
             </div>

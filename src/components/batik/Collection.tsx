@@ -1,9 +1,9 @@
 import { ArrowUpRight, Copy, FolderHeart, ShoppingBag, Trash2 } from "lucide-react";
-import { CATEGORIES, money, productFor, unitPrice } from "@/lib/batik/catalog";
+import { CATEGORIES, money, productFor, PRODUCTS, unitPrice } from "@/lib/batik/catalog";
 import type { BatikStudio } from "@/lib/batik/store";
 import { DesignPreview } from "./StudioControls";
 export function Collection({ studio: s }: { studio: BatikStudio }) {
-  return <section className="lab-section"><header><span className="lab-eyebrow">The collection / 12 canvases</span><h2>One pattern. A world of possibilities.</h2><p>Your current design travels with you. Choose a canvas to start customising.</p></header>
+  return <section className="lab-section"><header><span className="lab-eyebrow">The collection / {PRODUCTS.length} canvases</span><h2>One pattern. A world of possibilities.</h2><p>Your current design travels with you. Choose a canvas to start customising.</p></header>
     <div className="lab-filter"><div className="lab-segments">{CATEGORIES.map((c) => <button type="button" key={c} aria-pressed={s.category === c} onClick={() => s.setCategory(c)}>{c}</button>)}</div><input aria-label="Search products" placeholder="Find your next canvas…" value={s.query} onChange={(e) => s.setQuery(e.target.value)} /></div>
     <div className="lab-collection">{s.products.map((p) => <button key={p.id} type="button" className="lab-product-card" onClick={() => s.selectProduct(p.id)}><div><DesignPreview design={{ ...s.design, product: p.id, size: p.sizes[0], material: p.materials[0] }} /><span className="lab-category">{p.category}</span></div><span className="lab-card-line"><strong>{p.name}</strong><ArrowUpRight size={19} /></span><p>{p.description}</p><small>From {money(p.price)} · simulated pricing</small></button>)}</div>
     {!s.products.length && <div className="lab-empty">No canvases match that search.<button type="button" className="lab-button" onClick={() => { s.setQuery(""); s.setCategory("All"); }}>Show all products</button></div>}

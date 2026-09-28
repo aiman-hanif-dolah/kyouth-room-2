@@ -116,6 +116,25 @@
   }
 }
 
+/* Published Mode Global Read-Only Enforcement */
+main[data-mode="published"] input:not([type="search"]):not([data-allow-interactive="true"]),
+main[data-mode="published"] textarea:not([data-allow-interactive="true"]),
+main[data-mode="published"] select:not([data-allow-interactive="true"]) {
+  pointer-events: none !important;
+  user-select: text !important;
+  cursor: default !important;
+}
+
+main[data-mode="published"] input[type="color"] {
+  pointer-events: none !important;
+  opacity: 0.85;
+}
+
+main[data-mode="published"] input[type="checkbox"]:not([data-allow-interactive="true"]) {
+  pointer-events: none !important;
+  cursor: default !important;
+}
+
 @media print {
   @page {
     size: A4 landscape;

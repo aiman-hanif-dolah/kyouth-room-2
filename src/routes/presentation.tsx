@@ -23,7 +23,7 @@ export const Route = createFileRoute("/presentation")({
 const fmt = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
 
 function PresentationPage() {
-  const { state, update } = useProject();
+  const { state, update, canEdit } = useProject();
   const u = (fn: (d: typeof state) => void) => update(fn, "s7");
   const media = useAssets();
   const slides = buildSlides(state, true, media);
@@ -62,13 +62,49 @@ function PresentationPage() {
                   <div className="flex flex-wrap gap-1" role="group" aria-label="Speakers">
                     {state.members.map((m) => {
                       const on = p.speakerIds.includes(m.id);
-                      return <button key={m.id} type="button" aria-pressed={on} onClick={() => u((d) => { const a = d.presentation[i].speakerIds; d.presentation[i].speakerIds = on ? a.filter((x) => x !== m.id) : [...a, m.id]; })} className={cn("rounded-full border px-2 py-0.5 text-[11px]", on ? "border-brand bg-brand/15" : "border-border-strong text-muted-foreground")}>{m.name}</button>;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          aria-pressed={on}
+                          disabled={!canEdit}
+                          onClick={() => canEdit && u((d) => { const a = d.presentation[i].speakerIds; d.presentation[i].speakerIds = on ? a.filter((x) => x !== m.id) : [...a, m.id]; })}
+                          className={cn("rounded-full border px-2 py-0.5 text-[11px]", on ? "border-brand bg-brand/15 text-foreground" : "border-border-strong text-muted-foreground", !canEdit && "cursor-default")}
+                        >
+                          {m.name}
+                        </button>
+                      );
                     })}
                   </div>
-                  <input aria-label="Key points" value={p.keyPoints} onChange={(e) => u((d) => { d.presentation[i].keyPoints = e.target.value; })} placeholder="Key points" className="w-full rounded-md border border-input bg-card px-2 py-1 text-xs" />
-                  <input aria-label="Transition" value={p.transition} onChange={(e) => u((d) => { d.presentation[i].transition = e.target.value; })} placeholder="Transition line" className="w-full rounded-md border border-input bg-card px-2 py-1 text-xs italic" />
+                  <input
+                    aria-label="Key points"
+                    value={p.keyPoints}
+                    readOnly={!canEdit}
+                    disabled={!canEdit}
+                    onChange={(e) => u((d) => { d.presentation[i].keyPoints = e.target.value; })}
+                    placeholder={canEdit ? "Key points" : ""}
+                    className={cn("w-full rounded-md border border-input bg-card px-2 py-1 text-xs", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default")}
+                  />
+                  <input
+                    aria-label="Transition"
+                    value={p.transition}
+                    readOnly={!canEdit}
+                    disabled={!canEdit}
+                    onChange={(e) => u((d) => { d.presentation[i].transition = e.target.value; })}
+                    placeholder={canEdit ? "Transition line" : ""}
+                    className={cn("w-full rounded-md border border-input bg-card px-2 py-1 text-xs italic", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default")}
+                  />
                 </div>
-                <textarea aria-label={`Speaker notes for ${p.title}`} rows={3} value={p.speakerNotes} onChange={(e) => u((d) => { d.presentation[i].speakerNotes = e.target.value; })} placeholder="Speaker notes (editable)" className="w-full rounded-md border border-input bg-card p-2 text-xs" />
+                <textarea
+                  aria-label={`Speaker notes for ${p.title}`}
+                  rows={3}
+                  value={p.speakerNotes}
+                  readOnly={!canEdit}
+                  disabled={!canEdit}
+                  onChange={(e) => u((d) => { d.presentation[i].speakerNotes = e.target.value; })}
+                  placeholder={canEdit ? "Speaker notes (editable)" : ""}
+                  className={cn("w-full rounded-md border border-input bg-card p-2 text-xs", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default resize-none")}
+                />
                 <RowControls index={i} length={state.presentation.length} onMove={(dir) => u((d) => move(d.presentation, i, dir))} />
               </div>
             ))}

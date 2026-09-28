@@ -19,7 +19,7 @@ export const Route = createFileRoute("/product")({
 });
 
 function ProductPage() {
-  const { state, update } = useProject();
+  const { state, update, canEdit } = useProject();
   const p = state.product;
   const u = (fn: (d: typeof p) => void) => update((d) => fn(d.product), "s4");
 
@@ -53,8 +53,22 @@ function ProductPage() {
         <div className="space-y-2">
           {p.features.map((f, i) => (
             <div key={f.id} className="grid gap-2 rounded-lg border border-border bg-background p-2 md:grid-cols-[200px_1fr_auto]">
-              <input aria-label="Feature" value={f.title} onChange={(e) => u((d) => { d.features[i].title = e.target.value; })} className="rounded-md bg-card px-2 py-1.5 text-sm font-medium" />
-              <input aria-label="Benefit" value={f.benefit} onChange={(e) => u((d) => { d.features[i].benefit = e.target.value; })} className="rounded-md bg-card px-2 py-1.5 text-sm text-subtle" />
+              <input
+                aria-label="Feature"
+                value={f.title}
+                readOnly={!canEdit}
+                disabled={!canEdit}
+                onChange={(e) => u((d) => { d.features[i].title = e.target.value; })}
+                className={cn("rounded-md bg-card px-2 py-1.5 text-sm font-medium", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default")}
+              />
+              <input
+                aria-label="Benefit"
+                value={f.benefit}
+                readOnly={!canEdit}
+                disabled={!canEdit}
+                onChange={(e) => u((d) => { d.features[i].benefit = e.target.value; })}
+                className={cn("rounded-md bg-card px-2 py-1.5 text-sm text-subtle", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default")}
+              />
               <RowControls index={i} length={p.features.length} onMove={(dir) => u((d) => move(d.features, i, dir))} onDelete={() => u((d) => { d.features.splice(i, 1); })} />
             </div>
           ))}
@@ -90,44 +104,52 @@ function ProductPage() {
                       <span className="text-xs font-medium text-foreground">
                         {m.caption || `Prompt ${i + 1}`}
                       </span>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        aria-label="Delete prompt"
-                        onClick={() => u((d) => { d.mockups.splice(i, 1); })}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          aria-label="Delete prompt"
+                          onClick={() => u((d) => { d.mockups.splice(i, 1); })}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      )}
                     </div>
                     <input
                       aria-label="Mockup title"
                       value={m.caption}
-                      placeholder="Title / Silhouette name"
+                      placeholder={canEdit ? "Title / Silhouette name" : ""}
+                      readOnly={!canEdit}
+                      disabled={!canEdit}
                       onChange={(e) => u((d) => { d.mockups[i].caption = e.target.value; })}
-                      className="w-full rounded-md border border-input bg-card px-2 py-1 text-xs"
+                      className={cn("w-full rounded-md border border-input bg-card px-2 py-1 text-xs", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default")}
                     />
                     <textarea
                       aria-label="Mockup prompt"
                       rows={3}
                       value={m.prompt}
-                      placeholder="Describe the product mockup to generate…"
+                      placeholder={canEdit ? "Describe the product mockup to generate…" : ""}
+                      readOnly={!canEdit}
+                      disabled={!canEdit}
                       onChange={(e) => u((d) => { d.mockups[i].prompt = e.target.value; })}
-                      className="w-full resize-y rounded-md border border-input bg-card p-2 text-xs"
+                      className={cn("w-full resize-y rounded-md border border-input bg-card p-2 text-xs", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default resize-none")}
                     />
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-[11px] text-muted-foreground">Prompt for AI generator</span>
                       <CopyButton text={m.prompt} />
                     </div>
                     {/* Link paste optional shortcut */}
-                    <div className="mt-1 flex gap-1.5 border-t border-border/60 pt-2">
-                      <input
-                        aria-label="Paste image link"
-                        placeholder="https://… or direct link"
-                        value={m.url && !m.url.startsWith("asset:") ? m.url : ""}
-                        onChange={(e) => u((d) => { d.mockups[i].url = e.target.value; })}
-                        className="flex-1 rounded-md border border-input bg-card px-2 py-1 text-xs"
-                      />
-                    </div>
+                    {canEdit && (
+                      <div className="mt-1 flex gap-1.5 border-t border-border/60 pt-2">
+                        <input
+                          aria-label="Paste image link"
+                          placeholder="https://… or direct link"
+                          value={m.url && !m.url.startsWith("asset:") ? m.url : ""}
+                          onChange={(e) => u((d) => { d.mockups[i].url = e.target.value; })}
+                          className="flex-1 rounded-md border border-input bg-card px-2 py-1 text-xs"
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

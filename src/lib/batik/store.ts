@@ -7,6 +7,19 @@ const cacheSchema = z.object({ version: z.literal(1), design: designSchema, save
 const id = () => crypto.randomUUID();
 const checkoutSchema = z.object({ name: z.string().trim().min(2, "Enter a demo name of at least 2 characters.").max(60), payment: z.enum(PAYMENTS), acknowledged: z.literal(true, { errorMap: () => ({ message: "Confirm that this is a simulated order." }) }) });
 export type StudioTab = "studio" | "collection" | "saved" | "bag" | "orders";
+function readLinkedDesign() {
+  const url = new URL(window.location.href);
+  const payload = url.searchParams.get("design");
+  if (payload === null) return { found: false, design: null };
+  url.searchParams.delete("design");
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  try {
+    const parsed = designSchema.safeParse(JSON.parse(payload));
+    return { found: true, design: parsed.success ? parsed.data : null };
+  } catch {
+    return { found: true, design: null };
+  }
+}
 export function useBatikStudio() {
   const [history, setHistory] = useState<{ past: Design[]; current: Design; future: Design[] }>({ past: [], current: DEFAULT_DESIGN, future: [] });
   const [saved, setSaved] = useState<SavedDesign[]>([]);
@@ -25,13 +38,23 @@ export function useBatikStudio() {
   const [acknowledged, setAcknowledged] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [shareLink, setShareLink] = useState("");
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareCopyError, setShareCopyError] = useState(false);
   const design = history.current;
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) {
-        const value = cacheSchema.parse(JSON.parse(raw));
-        setHistory({ past: [], current: value.design, future: [] }); setSaved(value.saved); setCart(value.cart); setOrders(value.orders);
+      const linked = readLinkedDesign();
+      if (linked.design) {
+        setHistory({ past: [], current: linked.design, future: [] });
+        setNotice(`Shared design opened: ${linked.design.name || "Untitled design"}. Your edits stay in this browser.`);
+      } else {
+        const raw = localStorage.getItem(KEY);
+        if (raw) {
+          const value = cacheSchema.parse(JSON.parse(raw));
+          setHistory({ past: [], current: value.design, future: [] }); setSaved(value.saved); setCart(value.cart); setOrders(value.orders);
+        }
+        if (linked.found) setNotice("That shared design link is invalid or no longer supported. Your saved studio was kept.");
       }
     } catch { setStorageError("Browser saves could not be loaded. Your existing storage has been preserved; new changes stay in this session."); }
     setReady(true);
@@ -103,6 +126,26 @@ export function useBatikStudio() {
     catch { setNotice("Download could not be created. Try SVG or a different browser."); }
     finally { setExporting(false); }
   };
-  return { design, product: productFor(design), price: unitPrice(design), motif: MOTIFS.find((x) => x.id === design.motif)!, saved, cart, orders, ready, storageError, notice, tab, setTab, category, setCategory, query, setQuery, mode, setMode, zoom, setZoom, name, setName, payment, setPayment, acknowledged, setAcknowledged, checkoutError, exporting, totals, change, selectProduct, palette, shuffle, undo, redo, canUndo: !!history.past.length, canRedo: !!history.future.length, reset: () => replace(DEFAULT_DESIGN), save, load, duplicate, removeSaved, addToCart, quantity, removeItem, editItem, checkout, advance, receipt, download, products: PRODUCTS.filter((p) => (category === "All" || p.category === category) && `${p.name} ${p.description}`.toLowerCase().includes(query.toLowerCase())) };
+  const share = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("design", JSON.stringify({ ...design, name: design.name.trim() || "Untitled design" }));
+    setShareCopied(false);
+    setShareCopyError(false);
+    setShareLink(url.toString());
+  };
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setShareCopied(true);
+    } catch {
+      setShareCopied(false);
+      setShareCopyError(true);
+    }
+  };
+  const closeShare = () => { setShareLink(""); setShareCopied(false); setShareCopyError(false); };
+  return {
+    design, product: productFor(design), price: unitPrice(design), motif: MOTIFS.find((x) => x.id === design.motif)!, saved, cart, orders, ready, storageError, notice, tab, setTab, category, setCategory, query, setQuery, mode, setMode, zoom, setZoom, name, setName, payment, setPayment, acknowledged, setAcknowledged, checkoutError, exporting, totals, shareLink, shareCopied, shareCopyError, share, copyShareLink, closeShare, change, selectProduct, palette, shuffle, undo, redo, canUndo: !!history.past.length, canRedo: !!history.future.length, reset: () => replace(DEFAULT_DESIGN), save, load, duplicate, removeSaved, addToCart, quantity, removeItem, editItem, checkout, advance, receipt, download,
+    products: PRODUCTS.filter((p) => (category === "All" || p.category === category) && `${p.name} ${p.description}`.toLowerCase().includes(query.toLowerCase())),
+  };
 }
 export type BatikStudio = ReturnType<typeof useBatikStudio>;

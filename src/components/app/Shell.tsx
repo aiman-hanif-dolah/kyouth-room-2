@@ -185,7 +185,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </aside>
         </div>
       )}
-      <main className="lg:pl-60">
+      <main className="lg:pl-60" data-mode={canEdit ? "edit" : "published"}>
         <div className="mx-auto max-w-[1180px] px-4 py-8 md:px-8 md:py-10">{children}</div>
       </main>
     </div>

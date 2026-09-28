@@ -39,7 +39,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
-  const { state, update, hydrated } = useProject();
+  const { state, update, hydrated, canEdit } = useProject();
   const { assets } = useAssets();
   const progress = SECTIONS.map((s) => sectionProgress(state, s.id, assets));
   const overall = Math.round(progress.reduce((a, b) => a + b, 0) / SECTIONS.length);
@@ -82,7 +82,14 @@ function Dashboard() {
           {state.members.map((m, i) => (
             <div key={m.id}>
               <label htmlFor={`mem-${m.id}`} className="mb-1 block text-[11px] text-muted-foreground">Member {i + 1}</label>
-              <input id={`mem-${m.id}`} value={m.name} onChange={(e) => update((d) => { d.members[i].name = e.target.value; })} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-brand focus:outline-none" />
+              <input
+                id={`mem-${m.id}`}
+                value={m.name}
+                readOnly={!canEdit}
+                disabled={!canEdit}
+                onChange={(e) => update((d) => { d.members[i].name = e.target.value; })}
+                className={cn("w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-brand focus:outline-none", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default")}
+              />
             </div>
           ))}
         </div>

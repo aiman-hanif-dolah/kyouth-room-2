@@ -7,7 +7,7 @@ import { Area, Badge, Button, ProvenanceBadge, Select, StatusBadge } from "./kit
 import { cn } from "@/lib/utils";
 
 export function MemberPicker({ section }: { section: SectionId }) {
-  const { state, update } = useProject();
+  const { state, update, canEdit } = useProject();
   const t = state.tasks[section];
   return (
     <div className="flex flex-wrap gap-1.5" role="group" aria-label="Assign members">
@@ -18,7 +18,9 @@ export function MemberPicker({ section }: { section: SectionId }) {
             key={m.id}
             type="button"
             aria-pressed={on}
+            disabled={!canEdit}
             onClick={() =>
+              canEdit &&
               update((d) => {
                 const a = d.tasks[section].assignees;
                 d.tasks[section].assignees = on ? a.filter((x) => x !== m.id) : [...a, m.id];
@@ -26,7 +28,9 @@ export function MemberPicker({ section }: { section: SectionId }) {
             }
             className={cn(
               "rounded-full border px-2.5 py-1 text-xs transition-colors",
-              on ? "border-brand bg-brand/15 text-foreground" : "border-border-strong text-muted-foreground hover:text-foreground",
+              on ? "border-brand bg-brand/15 text-foreground" : "border-border-strong text-muted-foreground",
+              canEdit && !on && "hover:text-foreground",
+              !canEdit && "cursor-default"
             )}
           >
             {m.name || "Unnamed"}
@@ -97,12 +101,20 @@ function TaskRow({ section }: { section: SectionId }) {
               <MemberPicker section={section} />
             </div>
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input type="checkbox" checked={t.verified} onChange={(e) => update((d) => { d.tasks[section].verified = e.target.checked; })} className="accent-[var(--brand)]" />
+              <input
+                type="checkbox"
+                checked={t.verified}
+                disabled={!canEdit}
+                onChange={(e) => update((d) => { d.tasks[section].verified = e.target.checked; })}
+                className="accent-[var(--brand)]"
+              />
               Group has checked and verified this content
             </label>
-            <Button size="sm" variant="primary" disabled={t.status === "complete"} onClick={() => update((d) => { d.tasks[section].status = "complete"; })}>
-              Mark complete
-            </Button>
+            {canEdit && (
+              <Button size="sm" variant="primary" disabled={t.status === "complete"} onClick={() => update((d) => { d.tasks[section].status = "complete"; })}>
+                Mark complete
+              </Button>
+            )}
           </div>
           <div className="space-y-3">
             <Area label="Reviewer notes" rows={2} optional value={t.reviewerNotes} onChange={(v) => update((d) => { d.tasks[section].reviewerNotes = v; })} />

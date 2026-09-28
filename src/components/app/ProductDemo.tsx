@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Check, ChevronLeft, Minus, Plus, Package, Printer, Truck, Sparkles } from "lucide-react";
 import { useProject, rm } from "@/lib/project/store";
 import { BatikPattern, MOTIFS, PRODUCTS, ProductPreview, type MotifKey, type ProductKind } from "./Batik";
+import type { Design } from "@/lib/batik/catalog";
+import { DesignPreview } from "@/components/batik/StudioControls";
 import { Badge, Button } from "./kit";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +34,7 @@ export function ProductDemo() {
   const [accentId, setAccent] = useState(palette[1].id);
   const [scale, setScale] = useState(1);
   const [kind, setKind] = useState<ProductKind>("tote");
+  const [previewMode, setPreviewMode] = useState<"2d" | "3d">("2d");
   const [size, setSize] = useState("Standard");
   const [qty, setQty] = useState(1);
   const [name, setName] = useState("");
@@ -44,6 +47,31 @@ export function ProductDemo() {
   const price = priceFor(kind, qty);
   const stepIndex = STEPS.findIndex((s) => s.key === step);
   const orderNo = "BL-" + (1000 + motif.length * 37 + qty * 11 + kind.length * 5);
+  const previewMotifs: Record<MotifKey, Design["motif"]> = { parang: "parang", kawung: "kawung", bungaraya: "hibiscus", pucukrebung: "bamboo" };
+  const previewDesign: Design = {
+    name: `${MOTIFS.find((m) => m.key === motif)!.name} ${product.name}`,
+    product: kind,
+    size,
+    material: kind === "scarf" ? "Satin" : kind === "tee" ? "Cotton" : "Canvas",
+    motif: previewMotifs[motif],
+    secondary: "none",
+    ink: fg,
+    accent,
+    background: bg,
+    detail: accent,
+    scale: 60,
+    spacing: 6,
+    rotation: 0,
+    opacity: 1,
+    repeat: "grid",
+    mirror: false,
+    placement: "all",
+    border: false,
+    texture: true,
+    monogram: "",
+    textSize: 28,
+    textY: 320,
+  };
 
   const Swatches = ({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) => (
     <div>
@@ -92,8 +120,20 @@ export function ProductDemo() {
               {progress >= 3 && <p className="text-xs text-success">Delivered in the demo. In real life target is 5 to 7 days.</p>}
             </div>
           ) : (
-            <div className="h-[300px] w-[260px]">
-              <ProductPreview kind={kind} motif={motif} fg={fg} bg={bg} accent={accent} scale={scale} />
+            <div className={cn("relative grid w-full place-items-center pt-10", step === "product" && previewMode === "3d" ? "min-h-[390px]" : "min-h-[340px]")}>
+              {step === "product" && (
+                <div className="absolute right-3 top-3 z-10 flex rounded-full border border-border bg-background/90 p-1 shadow-sm" role="group" aria-label="Product preview mode">
+                  {(["2d", "3d"] as const).map((mode) => (
+                    <button key={mode} type="button" aria-pressed={previewMode === mode} onClick={() => setPreviewMode(mode)} className={cn("rounded-full px-3 py-1.5 text-xs font-medium transition-colors", previewMode === mode ? "bg-brand text-brand-foreground" : "text-muted-foreground hover:text-foreground")}>
+                      {mode === "2d" ? "2D preview" : "3D model ✦"}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className={step === "product" && previewMode === "3d" ? "h-[340px] w-[290px]" : "h-[300px] w-[260px]"}>
+                {step === "product" ? <DesignPreview design={previewDesign} mode={previewMode === "3d" ? "3d" : "product"} zoom={previewMode === "3d" ? 0.9 : 1} className={previewMode === "3d" ? "demo-3d-preview" : ""} /> : <ProductPreview kind={kind} motif={motif} fg={fg} bg={bg} accent={accent} scale={scale} />}
+              </div>
+              {step === "product" && previewMode === "3d" && <p className="deck-demo-cue">Drag the fabric to inspect the silhouette · Pattern applied live</p>}
             </div>
           )}
         </div>

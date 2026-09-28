@@ -3,6 +3,14 @@ import * as THREE from "three";
 import type { Design } from "@/lib/batik/catalog";
 import { designImage, designSvg } from "@/lib/batik/design";
 
+function fittedCameraDistance(camera: THREE.PerspectiveCamera, size: THREE.Vector3) {
+  const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+  const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
+  const verticalDistance = size.y / 2 / Math.tan(verticalFov / 2);
+  const horizontalDistance = Math.hypot(size.x, size.z) / 2 / Math.tan(horizontalFov / 2);
+  return Math.max(verticalDistance, horizontalDistance) * 1.12 + size.z / 2;
+}
+
 interface Batik3DViewerProps {
   design: Design;
   zoom?: number;
@@ -19,6 +27,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const cameraDistanceRef = useRef(5.2);
+  const modelSizeRef = useRef<THREE.Vector3 | null>(null);
   const modelGroupRef = useRef<THREE.Group | null>(null);
   const textureRef = useRef<THREE.CanvasTexture | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -26,6 +36,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
   const prevMouseRef = useRef({ x: 0, y: 0 });
   const autoRotateRef = useRef(autoRotate);
   autoRotateRef.current = autoRotate;
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
 
   // Compose the full design onto a high-res canvas for the 3D product texture.
   const renderBatikCanvas = (d: Design): Promise<HTMLCanvasElement> => {
@@ -339,6 +351,55 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         break;
       }
 
+      case "apron": {
+        const apronBody = new THREE.Mesh(new THREE.BoxGeometry(1.9, 2.1, 0.14, 12, 16, 2), batikMaterial);
+        apronBody.position.y = -0.15;
+        apronBody.castShadow = true;
+        group.add(apronBody);
+
+        const apronBib = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.15, 0.14, 8, 10, 2), batikMaterial);
+        apronBib.position.y = 1.05;
+        apronBib.castShadow = true;
+        group.add(apronBib);
+
+        const neckStrap = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(-0.38, 1.52, 0.12),
+          new THREE.Vector3(-0.38, 2.05, 0.12),
+          new THREE.Vector3(0, 2.22, 0.12),
+          new THREE.Vector3(0.38, 2.05, 0.12),
+          new THREE.Vector3(0.38, 1.52, 0.12),
+        ]);
+        group.add(new THREE.Mesh(new THREE.TubeGeometry(neckStrap, 24, 0.045, 8, false), darkAccentMat));
+
+        for (const side of [-1, 1]) {
+          const tieCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(side * 0.9, 0.45, 0.05),
+            new THREE.Vector3(side * 1.25, 0.48, 0.05),
+            new THREE.Vector3(side * 1.5, 0.35, 0.05),
+          ]);
+          group.add(new THREE.Mesh(new THREE.TubeGeometry(tieCurve, 12, 0.035, 8, false), darkAccentMat));
+        }
+        break;
+      }
+
+      case "bucket-hat": {
+        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.82, 0.82, 40, 12), batikMaterial);
+        crown.position.y = 0.28;
+        crown.castShadow = true;
+        group.add(crown);
+
+        const brim = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 0.88, 0.12, 48, 2), batikMaterial);
+        brim.position.y = -0.2;
+        brim.castShadow = true;
+        group.add(brim);
+
+        const hatBand = new THREE.Mesh(new THREE.TorusGeometry(0.81, 0.035, 8, 40), darkAccentMat);
+        hatBand.rotation.x = Math.PI / 2;
+        hatBand.position.y = -0.08;
+        group.add(hatBand);
+        break;
+      }
+
       case "runner": {
         // Table runner draped over simulated wooden tabletop
         const tableGeo = new THREE.BoxGeometry(3.6, 0.2, 2.2);
@@ -353,6 +414,42 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         runner.position.y = -0.18;
         runner.castShadow = true;
         group.add(runner);
+        break;
+      }
+
+      case "placemats": {
+        for (const [index, x] of [-1.2, 0, 1.2].entries()) {
+          const mat = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.65, 0.07, 10, 16, 1), batikMaterial);
+          mat.position.set(x, index === 1 ? 0.08 : 0, 0.12 - index * 0.08);
+          mat.castShadow = true;
+          mat.receiveShadow = true;
+          group.add(mat);
+        }
+        break;
+      }
+
+      case "tapestry": {
+        const tapestryGeometry = new THREE.PlaneGeometry(2.55, 3.15, 32, 28);
+        const tapestryPositions = tapestryGeometry.getAttribute("position");
+        for (let i = 0; i < tapestryPositions.count; i++) {
+          const x = tapestryPositions.getX(i);
+          const y = tapestryPositions.getY(i);
+          tapestryPositions.setZ(i, Math.sin(x * 2.2) * 0.035 + Math.sin(y * 1.3) * 0.018);
+        }
+        tapestryGeometry.computeVertexNormals();
+        const tapestryMaterial = new THREE.MeshStandardMaterial({
+          map: (batikMaterial as THREE.MeshStandardMaterial).map,
+          side: THREE.DoubleSide,
+          roughness: 0.85,
+        });
+        const tapestry = new THREE.Mesh(tapestryGeometry, tapestryMaterial);
+        tapestry.castShadow = true;
+        group.add(tapestry);
+
+        const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 2.9, 16), woodMat);
+        rod.rotation.z = Math.PI / 2;
+        rod.position.set(0, 1.63, 0);
+        group.add(rod);
         break;
       }
 
@@ -382,7 +479,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
 
     // 2. Camera setup
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    camera.position.set(0, 0.8, 5.2 / zoom);
+    camera.position.set(0, 0, cameraDistanceRef.current / zoom);
     cameraRef.current = camera;
 
     // 3. Renderer setup
@@ -453,6 +550,15 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       });
 
       const model = createProductMesh(design.product, material);
+      const bounds = new THREE.Box3().setFromObject(model);
+      const center = bounds.getCenter(new THREE.Vector3());
+      const size = bounds.getSize(new THREE.Vector3());
+      model.position.sub(center);
+      modelSizeRef.current = size;
+      cameraDistanceRef.current = fittedCameraDistance(camera, size);
+      camera.position.set(0, 0, cameraDistanceRef.current / zoomRef.current);
+      camera.lookAt(0, 0, 0);
+      floor.position.y = -size.y / 2 - 0.08;
       modelGroupRef.current = model;
       scene.add(model);
       setLoading(false);
@@ -536,6 +642,11 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       if (newW > 0 && newH > 0) {
         camera.aspect = newW / newH;
         camera.updateProjectionMatrix();
+        if (modelSizeRef.current) {
+          cameraDistanceRef.current = fittedCameraDistance(camera, modelSizeRef.current);
+          camera.position.set(0, 0, cameraDistanceRef.current / zoomRef.current);
+          camera.lookAt(0, 0, 0);
+        }
         renderer.setSize(newW, newH);
       }
     });
@@ -568,6 +679,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       textureRef.current?.dispose();
       textureRef.current = null;
       modelGroupRef.current = null;
+      modelSizeRef.current = null;
       sceneRef.current = null;
       rendererRef.current = null;
       cameraRef.current = null;
@@ -632,7 +744,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
   ]);
 
   useEffect(() => {
-    if (cameraRef.current) cameraRef.current.position.z = 5.2 / zoom;
+    if (cameraRef.current) cameraRef.current.position.z = cameraDistanceRef.current / zoom;
   }, [zoom]);
 
   return (
@@ -676,7 +788,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         </div>
       )}
 
-      <div className="absolute bottom-2 left-3 pointer-events-none text-[10px] text-gray-500 font-medium tracking-wide bg-white/60 px-2 py-0.5 rounded-sm">
+      <div className="batik-3d-instructions absolute bottom-2 left-3 pointer-events-none text-[10px] text-gray-500 font-medium tracking-wide bg-white/60 px-2 py-0.5 rounded-sm">
         Drag to inspect 360° · Textured live
       </div>
     </div>

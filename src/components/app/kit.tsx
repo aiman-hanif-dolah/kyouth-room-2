@@ -36,15 +36,16 @@ export function Button({
 }
 
 export function Card({ className, children, title, action, subtitle }: { className?: string; children: ReactNode; title?: ReactNode; subtitle?: ReactNode; action?: ReactNode }) {
+  const { canEdit } = useProject();
   return (
     <section className={cn("rounded-xl border border-border bg-card p-5 shadow-panel", className)}>
-      {(title || action) && (
+      {(title || (action && canEdit)) && (
         <header className="mb-4 flex flex-wrap items-start justify-between gap-2">
           <div>
             {title && <h3 className="text-[15px] font-medium tracking-tight">{title}</h3>}
             {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
           </div>
-          {action}
+          {canEdit ? action : null}
         </header>
       )}
       {children}
@@ -99,12 +100,22 @@ const inputCls =
 
 export function Field({ label, value, onChange, placeholder, type = "text", className, hint }: { label: string; value: string | number; onChange: (v: string) => void; placeholder?: string; type?: string; className?: string; hint?: string }) {
   const id = useFieldId();
+  const { canEdit } = useProject();
   return (
     <div className={className}>
       <label htmlFor={id} className="mb-1.5 block text-xs font-medium text-muted-foreground">
         {label}
       </label>
-      <input id={id} type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={inputCls} />
+      <input
+        id={id}
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        readOnly={!canEdit}
+        disabled={!canEdit}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(inputCls, !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default focus:ring-0")}
+      />
       {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );
@@ -112,13 +123,23 @@ export function Field({ label, value, onChange, placeholder, type = "text", clas
 
 export function Area({ label, value, onChange, rows = 3, placeholder, className, optional }: { label: string; value: string; onChange: (v: string) => void; rows?: number; placeholder?: string; className?: string; optional?: boolean }) {
   const id = useFieldId();
+  const { canEdit } = useProject();
   return (
     <div className={className}>
       <label htmlFor={id} className="mb-1.5 block text-xs font-medium text-muted-foreground">
         {label}
       </label>
-      <textarea id={id} rows={rows} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={cn(inputCls, "resize-y leading-relaxed")} />
-      {!optional && !value.trim() && <p className="mt-1 text-[11px] text-warning">Not completed yet</p>}
+      <textarea
+        id={id}
+        rows={rows}
+        value={value}
+        placeholder={placeholder}
+        readOnly={!canEdit}
+        disabled={!canEdit}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(inputCls, "resize-y leading-relaxed", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default resize-none focus:ring-0")}
+      />
+      {!optional && !value.trim() && canEdit && <p className="mt-1 text-[11px] text-warning">Not completed yet</p>}
     </div>
   );
 }
@@ -126,6 +147,7 @@ export function Area({ label, value, onChange, rows = 3, placeholder, className,
 export function NumField({ label, value, onChange, min = 0 }: { label: string; value: number; onChange: (v: number) => void; min?: number }) {
   const [raw, setRaw] = useState(String(value));
   const id = useFieldId();
+  const { canEdit } = useProject();
   useEffect(() => setRaw(String(value)), [value]);
   const invalid = raw.trim() === "" || Number.isNaN(Number(raw)) || Number(raw) < min;
   return (
@@ -138,26 +160,40 @@ export function NumField({ label, value, onChange, min = 0 }: { label: string; v
         inputMode="decimal"
         value={raw}
         aria-invalid={invalid}
+        readOnly={!canEdit}
+        disabled={!canEdit}
         onChange={(e) => {
           setRaw(e.target.value);
           const n = Number(e.target.value);
           if (e.target.value.trim() !== "" && !Number.isNaN(n) && n >= min) onChange(n);
         }}
-        className={cn(inputCls, "h-8 px-2 text-right tabular-nums", invalid && "border-destructive focus:border-destructive")}
+        className={cn(
+          inputCls,
+          "h-8 px-2 text-right tabular-nums",
+          invalid && canEdit && "border-destructive focus:border-destructive",
+          !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default focus:ring-0"
+        )}
       />
-      {invalid && <p className="mt-0.5 text-[10px] text-destructive">Enter a number ≥ {min}</p>}
+      {invalid && canEdit && <p className="mt-0.5 text-[10px] text-destructive">Enter a number ≥ {min}</p>}
     </div>
   );
 }
 
 export function Select<T extends string>({ label, value, onChange, options, className }: { label: string; value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; className?: string }) {
   const id = useFieldId();
+  const { canEdit } = useProject();
   return (
     <div className={className}>
       <label htmlFor={id} className="mb-1.5 block text-xs font-medium text-muted-foreground">
         {label}
       </label>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value as T)} className={cn(inputCls, "h-9 py-0")}>
+      <select
+        id={id}
+        value={value}
+        disabled={!canEdit}
+        onChange={(e) => onChange(e.target.value as T)}
+        className={cn(inputCls, "h-9 py-0", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default appearance-none pointer-events-none focus:ring-0")}
+      >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -170,6 +206,7 @@ export function Select<T extends string>({ label, value, onChange, options, clas
 
 /** Editable list of strings */
 export function StringList({ label, items, onChange, placeholder }: { label: string; items: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
+  const { canEdit } = useProject();
   return (
     <div>
       <p className="mb-1.5 text-xs font-medium text-muted-foreground">{label}</p>
@@ -180,23 +217,31 @@ export function StringList({ label, items, onChange, placeholder }: { label: str
               aria-label={`${label} item ${i + 1}`}
               value={it}
               placeholder={placeholder}
+              readOnly={!canEdit}
+              disabled={!canEdit}
               onChange={(e) => onChange(items.map((x, j) => (j === i ? e.target.value : x)))}
-              className={cn(inputCls, "h-8 py-1")}
+              className={cn(inputCls, "h-8 py-1", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default focus:ring-0")}
             />
-            <Button size="sm" variant="ghost" aria-label="Remove item" onClick={() => onChange(items.filter((_, j) => j !== i))}>
-              <X className="size-3.5" />
-            </Button>
+            {canEdit && (
+              <Button size="sm" variant="ghost" aria-label="Remove item" onClick={() => onChange(items.filter((_, j) => j !== i))}>
+                <X className="size-3.5" />
+              </Button>
+            )}
           </li>
         ))}
       </ul>
-      <Button size="sm" variant="ghost" className="mt-1.5" onClick={() => onChange([...items, ""])}>
-        <Plus className="size-3.5" /> Add
-      </Button>
+      {canEdit && (
+        <Button size="sm" variant="ghost" className="mt-1.5" onClick={() => onChange([...items, ""])}>
+          <Plus className="size-3.5" /> Add
+        </Button>
+      )}
     </div>
   );
 }
 
 export function RowControls({ index, length, onMove, onDelete }: { index: number; length: number; onMove: (dir: -1 | 1) => void; onDelete?: () => void }) {
+  const { canEdit } = useProject();
+  if (!canEdit) return null;
   return (
     <div className="flex items-center gap-0.5">
       <Button size="sm" variant="ghost" aria-label="Move up" disabled={index === 0} onClick={() => onMove(-1)}>
@@ -266,6 +311,7 @@ export function ImageSlot({
   onUpload?: () => void;
   isUploading?: boolean;
 }) {
+  const { canEdit } = useProject();
   const [url, setUrl] = useState("");
   const [err, setErr] = useState("");
   const img = <img src={item.url} alt={item.caption || "Uploaded visual"} className="h-full w-full object-cover" />;
@@ -276,10 +322,10 @@ export function ImageSlot({
         className={cn(
           "group relative mb-3 overflow-hidden rounded-md border border-dashed border-border-strong bg-elevated/50 transition-colors",
           aspect,
-          onUpload && !isUploading && "cursor-pointer hover:border-brand hover:bg-brand/5"
+          canEdit && onUpload && !isUploading && "cursor-pointer hover:border-brand hover:bg-brand/5"
         )}
         onClick={() => {
-          if (!item.url && onUpload && !isUploading) {
+          if (canEdit && !item.url && onUpload && !isUploading) {
             onUpload();
           }
         }}
@@ -295,7 +341,7 @@ export function ImageSlot({
             )}
             {/* Quick in-frame actions overlay */}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1.5 bg-black/40 opacity-0 backdrop-blur-[1px] transition-opacity group-hover:opacity-100">
-              {onUpload && (
+              {canEdit && onUpload && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -323,33 +369,53 @@ export function ImageSlot({
           </>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1.5 p-3 text-center text-xs text-muted-foreground">
-            <ImagePlus className={cn("size-6", onUpload && "text-brand")} />
+            <ImagePlus className={cn("size-6", canEdit && onUpload && "text-brand")} />
             <span className="font-medium text-foreground">
-              {isUploading ? "Uploading image…" : onUpload ? "Click here to upload image" : "No image yet"}
+              {isUploading ? "Uploading image…" : canEdit && onUpload ? "Click here to upload image" : "No image uploaded"}
             </span>
             <span className="text-[11px] text-muted-foreground">
-              {onUpload ? "or paste a link below" : "Paste an image link below"}
+              {canEdit ? (onUpload ? "or paste a link below" : "Paste an image link below") : "Published mode (read-only)"}
             </span>
           </div>
         )}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-1.5">
-        {item.url ? (
-          <Button size="sm" variant="ghost" onClick={() => onChange({ ...item, url: "" })}>
-            Clear image
-          </Button>
-        ) : <span />}
-      </div>
-      <div className="mt-2 flex gap-1.5">
-        <input aria-label="Image URL" placeholder="https://… image link" value={url} onChange={(e) => setUrl(e.target.value)} className={cn(inputCls, "h-8 py-1 text-xs")} />
-        <Button size="sm" disabled={!/^https?:\/\//.test(url)} onClick={() => { onChange({ ...item, url }); setUrl(""); }}>
-          <Link2 className="size-3.5" /> Use
-        </Button>
-      </div>
+      {canEdit && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-1.5">
+            {item.url ? (
+              <Button size="sm" variant="ghost" onClick={() => onChange({ ...item, url: "" })}>
+                Clear image
+              </Button>
+            ) : <span />}
+          </div>
+          <div className="mt-2 flex gap-1.5">
+            <input aria-label="Image URL" placeholder="https://… image link" value={url} onChange={(e) => setUrl(e.target.value)} className={cn(inputCls, "h-8 py-1 text-xs")} />
+            <Button size="sm" disabled={!/^https?:\/\//.test(url)} onClick={() => { onChange({ ...item, url }); setUrl(""); }}>
+              <Link2 className="size-3.5" /> Use
+            </Button>
+          </div>
+        </>
+      )}
       {err && <p className="mt-1 text-[11px] text-destructive">{err}</p>}
-      <input aria-label="Caption" value={item.caption} placeholder="Caption" onChange={(e) => onChange({ ...item, caption: e.target.value })} className={cn(inputCls, "mt-2 h-8 py-1 text-xs")} />
+      <input
+        aria-label="Caption"
+        value={item.caption}
+        placeholder={canEdit ? "Caption" : ""}
+        readOnly={!canEdit}
+        disabled={!canEdit}
+        onChange={(e) => onChange({ ...item, caption: e.target.value })}
+        className={cn(inputCls, "mt-2 h-8 py-1 text-xs", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default focus:ring-0")}
+      />
       <div className="mt-2">
-        <textarea aria-label="Image generation prompt" rows={2} value={item.prompt} onChange={(e) => onChange({ ...item, prompt: e.target.value })} className={cn(inputCls, "text-xs")} />
+        <textarea
+          aria-label="Image generation prompt"
+          rows={2}
+          value={item.prompt}
+          readOnly={!canEdit}
+          disabled={!canEdit}
+          onChange={(e) => onChange({ ...item, prompt: e.target.value })}
+          className={cn(inputCls, "text-xs", !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default resize-none focus:ring-0")}
+        />
         <div className="mt-1 flex items-center justify-between">
           <span className="text-[11px] text-muted-foreground">Prompt for your image tool</span>
           <CopyButton text={item.prompt} />

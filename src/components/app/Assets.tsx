@@ -143,11 +143,22 @@ function Thumb({ a, url, className, onClick, onReplace, canEdit }: { a: Asset; u
   );
 }
 
-function BlurInput({ value, onSave, label, placeholder }: { value: string; onSave: (v: string) => void; label: string; placeholder?: string }) {
+function BlurInput({ value, onSave, label, placeholder, readOnly }: { value: string; onSave: (v: string) => void; label: string; placeholder?: string; readOnly?: boolean }) {
   const [v, setV] = useState(value);
   const [prev, setPrev] = useState(value);
   if (value !== prev) { setPrev(value); setV(value); }
-  return <input aria-label={label} placeholder={placeholder ?? label} value={v} onChange={(e) => setV(e.target.value)} onBlur={() => v !== value && onSave(v)} className={inputCls} />;
+  return (
+    <input
+      aria-label={label}
+      placeholder={readOnly ? "" : (placeholder ?? label)}
+      value={v}
+      readOnly={readOnly}
+      disabled={readOnly}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => !readOnly && v !== value && onSave(v)}
+      className={cn(inputCls, readOnly && "border-transparent bg-transparent px-0 shadow-none cursor-default focus:ring-0")}
+    />
+  );
 }
 
 export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset; list: Asset[]; index: number; showSection?: boolean; vertical?: boolean }) {
@@ -220,35 +231,43 @@ export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset;
       {a.category === "primary-logo" && (
         <p className="text-[11px] text-muted-foreground">This is the project's main logo. It is used as the browser tab icon, app icon and share preview image.</p>
       )}
-      <BlurInput label="Caption" value={a.caption} onSave={(v) => updateAsset(a.id, { caption: v })} />
-      {a.kind === "image" && <BlurInput label="Alt text" placeholder="Alt text (describe the image)" value={a.alt_text} onSave={(v) => updateAsset(a.id, { alt_text: v })} />}
-      <BlurInput label="Tags" placeholder="Tags, comma separated" value={a.tags.join(", ")} onSave={(v) => updateAsset(a.id, { tags: v.split(",").map((t) => t.trim()).filter(Boolean) })} />
+      <BlurInput label="Caption" value={a.caption} readOnly={!canEdit} onSave={(v) => updateAsset(a.id, { caption: v })} />
+      {a.kind === "image" && <BlurInput label="Alt text" placeholder="Alt text (describe the image)" value={a.alt_text} readOnly={!canEdit} onSave={(v) => updateAsset(a.id, { alt_text: v })} />}
+      <BlurInput label="Tags" placeholder="Tags, comma separated" value={a.tags.join(", ")} readOnly={!canEdit} onSave={(v) => updateAsset(a.id, { tags: v.split(",").map((t) => t.trim()).filter(Boolean) })} />
       {showSection && (
-        <select aria-label="Task" value={a.section_id} onChange={(e) => updateAsset(a.id, { section_id: e.target.value as SectionId })} className={inputCls}>
+        <select aria-label="Task" value={a.section_id} disabled={!canEdit} onChange={(e) => updateAsset(a.id, { section_id: e.target.value as SectionId })} className={cn(inputCls, !canEdit && "border-transparent bg-transparent px-0 shadow-none cursor-default appearance-none pointer-events-none")}>
           {SECTIONS.map((s) => <option key={s.id} value={s.id}>Hour {s.hour}: {s.title}</option>)}
         </select>
       )}
       {(a.kind === "video" || a.kind === "audio") && <p className="text-[11px] text-muted-foreground">Not embedded in slides. Play it from here or download it during the presentation.</p>}
       {a.kind === "image" && (
         <label className="flex items-center gap-2 text-[11px] text-subtle">
-          <input type="checkbox" checked={a.in_presentation} onChange={(e) => updateAsset(a.id, { in_presentation: e.target.checked })} /> Show in presentation
+          <input type="checkbox" checked={a.in_presentation} disabled={!canEdit} onChange={(e) => updateAsset(a.id, { in_presentation: e.target.checked })} /> Show in presentation
         </label>
       )}
       <div className="flex flex-wrap items-center gap-1">
-        <Button size="sm" variant="ghost" aria-label="Move earlier" disabled={index === 0} onClick={() => moveAsset(list, index, -1)}><Prev className="size-3.5" /></Button>
-        <Button size="sm" variant="ghost" aria-label="Move later" disabled={index === list.length - 1} onClick={() => moveAsset(list, index, 1)}><Next className="size-3.5" /></Button>
+        {canEdit && (
+          <>
+            <Button size="sm" variant="ghost" aria-label="Move earlier" disabled={index === 0} onClick={() => moveAsset(list, index, -1)}><Prev className="size-3.5" /></Button>
+            <Button size="sm" variant="ghost" aria-label="Move later" disabled={index === list.length - 1} onClick={() => moveAsset(list, index, 1)}><Next className="size-3.5" /></Button>
+          </>
+        )}
         {url && <a href={url} target="_blank" rel="noreferrer" aria-label="Open" className="rounded p-1.5 text-muted-foreground hover:text-foreground"><ExternalLink className="size-3.5" /></a>}
         {url && <a href={`${url}&download=${encodeURIComponent(a.file_name)}`} aria-label="Download" className="rounded p-1.5 text-muted-foreground hover:text-foreground"><Download className="size-3.5" /></a>}
-        <Button size="sm" variant="ghost" aria-label="Replace file" onClick={() => rep.current?.click()}><RefreshCw className="size-3.5" /></Button>
-        <input ref={rep} type="file" accept={ACCEPT} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) replaceAsset(a, f); e.target.value = ""; }} />
-        {confirm ? (
-          <span className="ml-auto flex items-center gap-1 text-[11px] text-destructive">
-            Delete?
-            <Button size="sm" variant="danger" onClick={() => removeAsset(a)}>Yes</Button>
-            <Button size="sm" onClick={() => setConfirm(false)}>No</Button>
-          </span>
-        ) : (
-          <Button size="sm" variant="danger" className="ml-auto" aria-label="Delete file" onClick={() => setConfirm(true)}><Trash2 className="size-3.5" /></Button>
+        {canEdit && (
+          <>
+            <Button size="sm" variant="ghost" aria-label="Replace file" onClick={() => rep.current?.click()}><RefreshCw className="size-3.5" /></Button>
+            <input ref={rep} type="file" accept={ACCEPT} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) replaceAsset(a, f); e.target.value = ""; }} />
+            {confirm ? (
+              <span className="ml-auto flex items-center gap-1 text-[11px] text-destructive">
+                Delete?
+                <Button size="sm" variant="danger" onClick={() => removeAsset(a)}>Yes</Button>
+                <Button size="sm" onClick={() => setConfirm(false)}>No</Button>
+              </span>
+            ) : (
+              <Button size="sm" variant="danger" className="ml-auto" aria-label="Delete file" onClick={() => setConfirm(true)}><Trash2 className="size-3.5" /></Button>
+            )}
+          </>
         )}
       </div>
       {view !== null && <Lightbox items={images} index={view} onClose={() => setView(null)} onNavigate={setView} />}

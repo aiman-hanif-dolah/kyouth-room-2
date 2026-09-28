@@ -1,11 +1,12 @@
+import { lazy, Suspense } from "react";
 import type { Design } from "@/lib/batik/catalog";
 import { MOTIFS, PALETTES } from "@/lib/batik/catalog";
 import type { BatikStudio } from "@/lib/batik/store";
 import { designImage, type PreviewMode } from "@/lib/batik/design";
-import { Batik3DViewer } from "./Batik3DViewer";
+const Batik3DViewer = lazy(() => import("./Batik3DViewer").then(({ Batik3DViewer: Component }) => ({ default: Component })));
 export function DesignPreview({ design, mode = "product", zoom = 1, className = "" }: { design: Design; mode?: PreviewMode; zoom?: number; className?: string }) {
   if (mode === "3d") {
-    return <Batik3DViewer design={design} zoom={zoom} className={className} />;
+    return <Suspense fallback={<div className={`grid h-full min-h-[340px] w-full place-items-center bg-[#f4eee5] text-xs font-semibold text-[#514267] ${className}`} role="status">Preparing your 3D preview…</div>}><Batik3DViewer design={design} zoom={zoom} className={className} /></Suspense>;
   }
   return <img className={className} src={designImage(design, mode)} alt={`${design.name || "Untitled design"}, ${design.motif} ${mode} preview`} draggable={false} />;
 }

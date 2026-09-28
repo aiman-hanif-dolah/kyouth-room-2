@@ -1,13 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, ArrowDownToLine, ChevronRight, FlaskConical, FolderHeart, RotateCcw, Save, ShoppingBag as BagIcon, Shuffle, Undo2, Redo2, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowUpRight, ArrowDownToLine, ChevronRight, Copy, FlaskConical, FolderHeart, RotateCcw, Save, Share2, ShoppingBag as BagIcon, Shuffle, Undo2, Redo2, ZoomIn, ZoomOut } from "lucide-react";
 import { useBatikStudio, type StudioTab } from "@/lib/batik/store";
 import { money, PRODUCTS } from "@/lib/batik/catalog";
 import { DesignPreview, StudioControls } from "@/components/batik/StudioControls";
 import { Collection, SavedDesigns } from "@/components/batik/Collection";
 import { ShoppingBag, Orders } from "@/components/batik/Checkout";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import "@/components/batik/batik-lab.css";
 export const Route = createFileRoute("/batik-lab")({
-  head: () => ({ meta: [{ title: "Batik Lab — Your pattern. Your world." }, { name: "description", content: "Design your own batik. Explore twelve products, build a personal collection, export your artwork and try a simulated checkout." }] }),
+  head: () => ({ meta: [{ title: "Batik Lab — Your pattern. Your world." }, { name: "description", content: `Design your own batik. Explore ${PRODUCTS.length} products, build a personal collection, export your artwork and try a simulated checkout.` }] }),
   component: BatikLab,
 });
 const TABS: { key: StudioTab; label: string }[] = [{ key: "studio", label: "Design studio" }, { key: "collection", label: "The collection" }, { key: "saved", label: "Saved designs" }, { key: "bag", label: "Bag" }, { key: "orders", label: "Orders" }];
@@ -20,9 +21,9 @@ function BatikLab() {
     <p className="lab-announcement" role="status" aria-live="polite">{s.notice || "Your studio, saved in this browser. Design freely; checkout is simulated."}</p>
     <fieldset disabled={!s.ready} className="lab-workspace">
       {s.tab === "studio" && <>
-        <section className="lab-intro"><div><span className="lab-eyebrow">The design studio / Made by you</span><h1>Heritage, with<br /><em>your signature.</em></h1><p>Choose a rhythm. Find your colours. Make something unmistakably yours.</p></div><button className="lab-collection-link" onClick={() => s.setTab("collection")}><span>12 canvases.<br />Endless possibilities.</span><ArrowUpRight size={28} /></button></section>
+        <section className="lab-intro"><div><span className="lab-eyebrow">The design studio / Made by you</span><h1>Heritage, with<br /><em>your signature.</em></h1><p>Choose a rhythm. Find your colours. Make something unmistakably yours.</p></div><button className="lab-collection-link" onClick={() => s.setTab("collection")}><span>{PRODUCTS.length} canvases.<br />Endless possibilities.</span><ArrowUpRight size={28} /></button></section>
         <div className="lab-editor"><StudioControls studio={s} /><div className="lab-main-canvas">
-          <div className="lab-toolbar"><label className="lab-design-name"><span className="lab-eyebrow">Current design</span><input aria-label="Design name" maxLength={60} value={s.design.name} onChange={(e) => s.change({ name: e.target.value })} /></label><div className="lab-actions"><button className="lab-icon" aria-label="Undo design change" title="Undo" disabled={!s.canUndo} onClick={s.undo}><Undo2 size={18} /></button><button className="lab-icon" aria-label="Redo design change" title="Redo" disabled={!s.canRedo} onClick={s.redo}><Redo2 size={18} /></button><button className="lab-icon" aria-label="Reset design" title="Reset (undoable)" onClick={s.reset}><RotateCcw size={17} /></button><button className="lab-button" onClick={s.save}><Save size={15} /> Save design</button></div></div>
+          <div className="lab-toolbar"><label className="lab-design-name"><span className="lab-eyebrow">Current design</span><input aria-label="Design name" maxLength={60} value={s.design.name} onChange={(e) => s.change({ name: e.target.value })} /></label><div className="lab-actions"><button className="lab-icon" aria-label="Undo design change" title="Undo" disabled={!s.canUndo} onClick={s.undo}><Undo2 size={18} /></button><button className="lab-icon" aria-label="Redo design change" title="Redo" disabled={!s.canRedo} onClick={s.redo}><Redo2 size={18} /></button><button className="lab-icon" aria-label="Reset design" title="Reset (undoable)" onClick={s.reset}><RotateCcw size={17} /></button><button className="lab-button" onClick={s.share}><Share2 size={15} /> Share design</button><button className="lab-button" onClick={s.save}><Save size={15} /> Save design</button></div></div>
           <div className="lab-canvas"><div className="lab-canvas-top"><span className="lab-canvas-badge">LIVE PREVIEW</span><div className="lab-segments"><button aria-pressed={s.mode === "product"} onClick={() => s.setMode("product")}>2D Product</button><button aria-pressed={s.mode === "3d"} onClick={() => s.setMode("3d")}>3D Model ✦</button><button aria-pressed={s.mode === "pattern"} onClick={() => s.setMode("pattern")}>Pattern Tile</button></div></div><div className="lab-preview-window"><div style={{ transform: s.mode === "3d" ? "none" : `scale(${s.zoom})`, width: "100%", height: "100%" }}><DesignPreview design={s.design} mode={s.mode} zoom={s.zoom} /></div></div><div className="lab-canvas-bottom"><button className="lab-button" onClick={s.shuffle}><Shuffle size={15} /> Surprise me</button><div className="lab-zoom"><button className="lab-icon" aria-label="Zoom out" disabled={s.zoom <= 0.75} onClick={() => s.setZoom(Math.max(0.75,s.zoom-0.25))}><ZoomOut size={18} /></button><output>{Math.round(s.zoom*100)}%</output><button className="lab-icon" aria-label="Zoom in" disabled={s.zoom >= 1.75} onClick={() => s.setZoom(Math.min(1.75,s.zoom+0.25))}><ZoomIn size={18} /></button></div></div></div>
           <div className="lab-product-config"><div><span className="lab-eyebrow">Your canvas</span><label>Product<select value={s.design.product} onChange={(e) => s.selectProduct(e.target.value)}>{PRODUCTS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label></div><label>Size<select value={s.design.size} onChange={(e) => s.change({ size: e.target.value })}>{s.product.sizes.map((size) => <option key={size}>{size}</option>)}</select></label><label>Material<select value={s.design.material} onChange={(e) => s.change({ material: e.target.value })}>{s.product.materials.map((material) => <option key={material}>{material}</option>)}</select></label></div>
           <div className="lab-buy-line"><div><strong>{money(s.price)}</strong><small>per piece · simulated pricing</small></div><button className="lab-button lab-primary" onClick={s.addToCart}>Add to bag <BagIcon size={18} /></button></div>
@@ -36,6 +37,19 @@ function BatikLab() {
       {s.tab === "bag" && <ShoppingBag studio={s} />}
       {s.tab === "orders" && <Orders studio={s} />}
     </fieldset>
+    <Dialog open={!!s.shareLink} onOpenChange={(open) => { if (!open) s.closeShare(); }}>
+      <DialogContent className="border-[#d9cfbf] bg-[#fffaf1] text-[#292640]">
+        <DialogHeader>
+          <DialogTitle>Pass this design along.</DialogTitle>
+          <DialogDescription className="text-[#6c6572]">The link carries this design’s settings. Opening it creates a local copy in Batik Lab; the design isn’t uploaded.</DialogDescription>
+        </DialogHeader>
+        <input id="batik-share-link" aria-label="Share link" readOnly value={s.shareLink} onFocus={(e) => e.currentTarget.select()} className="w-full rounded-md border border-[#d9cfbf] bg-white px-3 py-2 text-xs text-[#292640]" />
+        <p className="min-h-5 text-xs text-[#6c6572]" role="status" aria-live="polite">{s.shareCopied ? "Link copied. Your teammate can open it in Batik Lab." : s.shareCopyError ? "Clipboard access was unavailable. The link is selected so you can copy it." : "Copy the link and send it to a teammate."}</p>
+        <DialogFooter>
+          <button type="button" className="lab-button lab-primary" onClick={s.copyShareLink}><Copy size={15} /> {s.shareCopied ? "Copied" : "Copy link"}</button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     <footer className="lab-footer"><strong>Batik Lab.</strong><span>Personal expression, inspired by tradition.</span><small>Browser-local studio · Simulated orders · By Tech Ventura</small></footer>
   </div>;
 }

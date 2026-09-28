@@ -28,7 +28,7 @@ const COMP_COLS: { key: keyof Competitor; label: string }[] = [
 ];
 
 function BusinessPage() {
-  const { state, update } = useProject();
+  const { state, update, canEdit } = useProject();
   const b = state.business;
   const u = (fn: (d: typeof b) => void) => update((d) => fn(d.business), "s3");
   const rows = b.projection.map((r) => ({ r, c: yearCalc(r) }));
@@ -68,7 +68,14 @@ function BusinessPage() {
                 <tr key={row.id} className={cn("border-t border-border", /\(us\)/i.test(row.name) && "bg-brand/5")}>
                   {COMP_COLS.map((c) => (
                     <td key={c.key} className="p-1">
-                      <input aria-label={`${c.label} row ${i + 1}`} value={row[c.key]} onChange={(e) => u((d) => { d.competitors[i][c.key] = e.target.value; })} className="w-full rounded-md bg-transparent px-2 py-1.5 hover:bg-elevated focus:bg-elevated focus:outline-none" />
+                      <input
+                        aria-label={`${c.label} row ${i + 1}`}
+                        value={row[c.key]}
+                        readOnly={!canEdit}
+                        disabled={!canEdit}
+                        onChange={(e) => u((d) => { d.competitors[i][c.key] = e.target.value; })}
+                        className={cn("w-full rounded-md bg-transparent px-2 py-1.5 focus:outline-none", canEdit ? "hover:bg-elevated focus:bg-elevated" : "cursor-default")}
+                      />
                     </td>
                   ))}
                   <td className="p-1"><RowControls index={i} length={b.competitors.length} onMove={(dir) => u((d) => move(d.competitors, i, dir))} onDelete={() => u((d) => { d.competitors.splice(i, 1); })} /></td>
@@ -112,7 +119,7 @@ function BusinessPage() {
                 {b.projection.map((r, i) => (
                   <th key={r.id} className="pb-2 text-right font-medium">
                     {r.label}
-                    {b.projection.length > 1 && <button type="button" className="ml-2 text-destructive hover:underline" onClick={() => u((d) => { d.projection.splice(i, 1); d.projection.forEach((y, j) => { y.label = `Year ${j + 1}`; }); })}>remove</button>}
+                    {canEdit && b.projection.length > 1 && <button type="button" className="ml-2 text-destructive hover:underline" onClick={() => u((d) => { d.projection.splice(i, 1); d.projection.forEach((y, j) => { y.label = `Year ${j + 1}`; }); })}>remove</button>}
                   </th>
                 ))}
               </tr>
