@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 // backspace; the typed sequence is compared server-side like the text code.
 const EMOJI_KEYS = ["😎", "🔥", "🚀", "🌙", "⭐", "🍌", "🎨", "💡", "🐝", "🌺", "🏆", "❤️"];
 import { Link } from "@tanstack/react-router";
-import { Briefcase, Building2, ClipboardCheck, LayoutDashboard, Megaphone, Menu, MonitorPlay, Package, Sparkles, Users, X, RotateCcw, FolderOpen, Lock, PencilLine } from "lucide-react";
+import { Briefcase, Building2, ClipboardCheck, LayoutDashboard, Megaphone, Menu, MonitorPlay, Package, Sparkles, Users, X, FolderOpen, Lock, PencilLine } from "lucide-react";
 import { useProject } from "@/lib/project/store";
 import { useEditMode } from "@/lib/project/editmode";
 import { Button } from "./kit";
@@ -25,12 +25,11 @@ const NAV = [
 
 export function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const { state, reset, sync, syncError } = useProject();
+  const { state, sync, syncError } = useProject();
   const { canEdit, unlock, lock } = useEditMode();
   const syncText = !canEdit
     ? "Published view: read-only, same content for everyone. Switch to Edit with the passcode to change content or upload files."
     : sync === "loading" ? "Connecting to the shared workspace…" : sync === "saving" ? "Saving to the shared workspace…" : sync === "error" ? `Shared save failed: ${syncError}. Your edits stay in this browser until it works again.` : "Edit mode. Changes save to the shared workspace and appear on everyone's devices. If two people edit at the same moment, the last save wins.";
-  const [confirm, setConfirm] = useState(false);
   const [askCode, setAskCode] = useState(false);
   const [code, setCode] = useState("");
   const [badCode, setBadCode] = useState(false);
@@ -143,19 +142,6 @@ export function Shell({ children }: { children: ReactNode }) {
       <div className="mt-auto space-y-3 rounded-lg border border-border p-3 text-[11px] leading-relaxed text-muted-foreground">
         {modeToggle}
         <p className={sync === "error" ? "text-destructive" : undefined}>{syncText}</p>
-        {canEdit && (confirm ? (
-          <div className="space-y-2">
-            <p className="text-destructive">Erase all edits and restore starter content?</p>
-            <div className="flex gap-1.5">
-              <Button size="sm" variant="danger" className="border border-destructive/40" onClick={() => { reset(); setConfirm(false); }}>Yes, reset</Button>
-              <Button size="sm" onClick={() => setConfirm(false)}>Cancel</Button>
-            </div>
-          </div>
-        ) : (
-          <Button size="sm" variant="ghost" className="-ml-2" onClick={() => setConfirm(true)}>
-            <RotateCcw className="size-3.5" /> Reset to demo data
-          </Button>
-        ))}
       </div>
     </div>
   );
