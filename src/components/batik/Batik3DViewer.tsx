@@ -43,6 +43,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
   const plinthRef = useRef<THREE.Mesh | null>(null);
   const plinthTopRef = useRef<THREE.Mesh | null>(null);
   const fabricMaterialsRef = useRef(new Set<THREE.MeshStandardMaterial>());
+  const fabricSurfaceMapsRef = useRef(new Map<string, THREE.CanvasTexture>());
   const targetRotationRef = useRef({ x: 0, y: 0 });
   const hasMountedTextureEffectRef = useRef(false);
   const textureRef = useRef<THREE.CanvasTexture | null>(null);
@@ -100,12 +101,56 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     }
   };
 
+  const fabricSurfaceMap = (finish: string) => {
+    const cachedMap = fabricSurfaceMapsRef.current.get(finish);
+    if (cachedMap) return cachedMap;
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext("2d");
+    if (context) {
+      context.fillStyle = "#808080";
+      context.fillRect(0, 0, 128, 128);
+      if (finish === "Satin") {
+        for (let index = -128; index < 256; index += 8) {
+          context.fillStyle = index % 16 === 0 ? "#898989" : "#777777";
+          context.beginPath();
+          context.moveTo(index, 0);
+          context.lineTo(index + 128, 128);
+          context.lineTo(index + 130, 128);
+          context.lineTo(index + 2, 0);
+          context.fill();
+        }
+      } else {
+        const interval = finish === "Linen blend" ? 5 : finish === "Canvas" ? 7 : 4;
+        for (let offset = 0; offset < 128; offset += interval) {
+          context.fillStyle = offset % (interval * 2) === 0 ? "#929292" : "#707070";
+          context.fillRect(0, offset, 128, 1);
+          context.fillStyle = offset % (interval * 2) === 0 ? "#737373" : "#8d8d8d";
+          context.fillRect(offset, 0, 1, 128);
+        }
+      }
+    }
+    const map = new THREE.CanvasTexture(canvas);
+    map.wrapS = THREE.RepeatWrapping;
+    map.wrapT = THREE.RepeatWrapping;
+    map.repeat.set(3, 3);
+    fabricSurfaceMapsRef.current.set(finish, map);
+    return map;
+  };
+
+  const fabricFinish = (finish: string) => ({
+    roughness: finish === "Satin" ? 0.28 : finish === "Linen blend" ? 0.84 : finish === "Canvas" ? 0.9 : 0.72,
+    metalness: 0,
+    bumpScale: finish === "Linen blend" ? 0.07 : finish === "Canvas" ? 0.065 : finish === "Satin" ? 0.01 : 0.035,
+  });
+
   const makeFabricMaterial = (texture: THREE.CanvasTexture) => {
     const finish = designRef.current.material;
     const material = new THREE.MeshStandardMaterial({
+      ...fabricFinish(finish),
       map: texture,
-      roughness: finish === "Satin" ? 0.35 : finish === "Linen blend" ? 0.85 : 0.65,
-      metalness: finish === "Satin" ? 0.12 : 0.02,
+      bumpMap: fabricSurfaceMap(finish),
       side: THREE.DoubleSide,
     });
     fabricMaterialsRef.current.add(material);
@@ -303,58 +348,79 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       case "tee":
       case "shirt":
       case "kurung":
-      case "kebaya": {
+      case "kebaya":
+      case "kimono": {
         const isTee = productId === "tee";
         const isShirt = productId === "shirt";
         const isKurung = productId === "kurung";
         const isKebaya = productId === "kebaya";
+        const isKimono = productId === "kimono";
         const top = isTee ? 1.12 : 1.2;
         const hem = isTee ? -1.12 : isKurung ? -1.55 : -1.28;
         const shoulder = isTee ? 0.48 : 0.52;
-        const outerSleeve = isTee ? 1.45 : 1.62;
+        const outerSleeve = isTee ? 1.45 : isKimono ? 1.9 : 1.62;
         const waist = isKebaya ? 0.37 : 0.7;
         const sideHem = isKurung ? -1.48 : hem;
-        const garmentShape = new THREE.Shape();
-        garmentShape.moveTo(-waist, sideHem);
-        garmentShape.lineTo(waist, sideHem);
-        garmentShape.lineTo(waist, isKebaya ? -0.2 : 0.35);
-        garmentShape.lineTo(1.05, 0.75);
-        garmentShape.lineTo(outerSleeve, 0.08);
-        garmentShape.lineTo(outerSleeve - 0.3, -0.1);
-        garmentShape.lineTo(waist + 0.05, 0.45);
-        garmentShape.lineTo(shoulder, top);
-        garmentShape.lineTo(0.28, top);
-        garmentShape.quadraticCurveTo(0, top - 0.34, -0.28, top);
-        garmentShape.lineTo(-shoulder, top);
-        garmentShape.lineTo(-waist - 0.05, 0.45);
-        garmentShape.lineTo(-outerSleeve + 0.3, -0.1);
-        garmentShape.lineTo(-outerSleeve, 0.08);
-        garmentShape.lineTo(-1.05, 0.75);
-        garmentShape.lineTo(-waist, isKebaya ? -0.2 : 0.35);
-        garmentShape.closePath();
-        if (isKebaya) {
-          garmentShape.moveTo(-0.48, top - 0.02);
-          garmentShape.lineTo(0.48, top - 0.02);
-          garmentShape.lineTo(0.12, -0.5);
-          garmentShape.lineTo(-0.32, -0.5);
+        const fabricMap = (batikMaterial as THREE.MeshStandardMaterial).map!;
+        const addGarmentPanel = (shape: THREE.Shape) => {
+          const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.24, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.055, bevelThickness: 0.06 });
+          fitFabricUvs(geometry);
+          const material = makeFabricMaterial(fabricMap);
+          material.map!.wrapS = THREE.ClampToEdgeWrapping;
+          material.map!.wrapT = THREE.ClampToEdgeWrapping;
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.position.z = -0.12;
+          mesh.castShadow = true;
+          group.add(mesh);
+        };
+        if (isKimono) {
+          for (const side of [-1, 1]) {
+            const panel = new THREE.Shape();
+            panel.moveTo(side * 0.12, hem);
+            panel.lineTo(side * 0.72, hem);
+            panel.lineTo(side * 0.76, 0.42);
+            panel.lineTo(side * 1.05, 0.75);
+            panel.lineTo(side * outerSleeve, 0.08);
+            panel.lineTo(side * (outerSleeve - 0.3), -0.1);
+            panel.lineTo(side * 0.55, 0.42);
+            panel.lineTo(side * shoulder, top);
+            panel.lineTo(side * 0.12, top);
+            panel.closePath();
+            addGarmentPanel(panel);
+          }
+        } else {
+          const garmentShape = new THREE.Shape();
+          garmentShape.moveTo(-waist, sideHem);
+          garmentShape.lineTo(waist, sideHem);
+          garmentShape.lineTo(waist, isKebaya ? -0.2 : 0.35);
+          garmentShape.lineTo(1.05, 0.75);
+          garmentShape.lineTo(outerSleeve, 0.08);
+          garmentShape.lineTo(outerSleeve - 0.3, -0.1);
+          garmentShape.lineTo(waist + 0.05, 0.45);
+          garmentShape.lineTo(shoulder, top);
+          garmentShape.lineTo(0.28, top);
+          garmentShape.quadraticCurveTo(0, top - 0.34, -0.28, top);
+          garmentShape.lineTo(-shoulder, top);
+          garmentShape.lineTo(-waist - 0.05, 0.45);
+          garmentShape.lineTo(-outerSleeve + 0.3, -0.1);
+          garmentShape.lineTo(-outerSleeve, 0.08);
+          garmentShape.lineTo(-1.05, 0.75);
+          garmentShape.lineTo(-waist, isKebaya ? -0.2 : 0.35);
           garmentShape.closePath();
+          if (isKebaya) {
+            garmentShape.moveTo(-0.48, top - 0.02);
+            garmentShape.lineTo(0.48, top - 0.02);
+            garmentShape.lineTo(0.12, -0.5);
+            garmentShape.lineTo(-0.32, -0.5);
+            garmentShape.closePath();
+          }
+          addGarmentPanel(garmentShape);
         }
-        const garmentGeo = new THREE.ExtrudeGeometry(garmentShape, {
-          depth: 0.24,
-          bevelEnabled: true,
-          bevelSegments: 3,
-          steps: 1,
-          bevelSize: 0.055,
-          bevelThickness: 0.06,
-        });
-        fitFabricUvs(garmentGeo);
-        const garmentMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
-        garmentMaterial.map!.wrapS = THREE.ClampToEdgeWrapping;
-        garmentMaterial.map!.wrapT = THREE.ClampToEdgeWrapping;
-        const garment = new THREE.Mesh(garmentGeo, garmentMaterial);
-        garment.position.z = -0.12;
-        garment.castShadow = true;
-        group.add(garment);
+        if (isKimono) {
+          const sash = new THREE.Mesh(new THREE.BoxGeometry(0.11, 2.15, 0.035), darkAccentMat);
+          sash.position.set(0, -0.02, 0.15);
+          group.add(sash);
+        }
 
         if (isShirt) {
           const placket = new THREE.Mesh(new THREE.BoxGeometry(0.045, 1.65, 0.035), darkAccentMat);
@@ -391,21 +457,41 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         break;
       }
 
-      case "scarf": {
-        // Flowing draped scarf curve
-        const scarfGeo = new THREE.PlaneGeometry(2.4, 3.2, 32, 32);
-        const pos = scarfGeo.getAttribute("position");
-        for (let i = 0; i < pos.count; i++) {
-          const x = pos.getX(i);
-          const y = pos.getY(i);
-          pos.setZ(i, Math.sin(x * 2.2) * 0.35 + Math.cos(y * 1.8) * 0.25);
+      case "scarf":
+      case "headwrap": {
+        const isHeadwrap = productId === "headwrap";
+        if (isHeadwrap) {
+          const displayHead = new THREE.Mesh(new THREE.SphereGeometry(0.7, 32, 24), new THREE.MeshStandardMaterial({ color: 0xe8ddcd, roughness: 0.92 }));
+          displayHead.scale.set(0.9, 1.18, 0.82);
+          displayHead.position.y = -0.08;
+          group.add(displayHead);
+          const wrapGeometry = new THREE.TorusGeometry(0.49, 0.14, 16, 56);
+          wrapGeometry.rotateX(Math.PI / 2);
+          fitFabricUvs(wrapGeometry);
+          const wrap = new THREE.Mesh(wrapGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+          wrap.scale.set(1.08, 0.92, 1);
+          wrap.position.y = 0.31;
+          wrap.castShadow = true;
+          group.add(wrap);
+          const knot = new THREE.Mesh(new THREE.SphereGeometry(0.2, 20, 14), makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+          knot.scale.set(1.15, 0.75, 0.85);
+          knot.position.set(0, 0.38, -0.48);
+          group.add(knot);
+        } else {
+          const scarfGeo = new THREE.PlaneGeometry(2.4, 3.2, 32, 32);
+          const pos = scarfGeo.getAttribute("position");
+          for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const y = pos.getY(i);
+            pos.setZ(i, Math.sin(x * 2.2) * 0.35 + Math.cos(y * 1.8) * 0.25);
+          }
+          scarfGeo.computeVertexNormals();
+          fitFabricUvs(scarfGeo);
+          const scarfMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
+          const scarfMesh = new THREE.Mesh(scarfGeo, scarfMaterial);
+          scarfMesh.castShadow = true;
+          group.add(scarfMesh);
         }
-        scarfGeo.computeVertexNormals();
-        fitFabricUvs(scarfGeo);
-        const scarfMaterial = makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!);
-        const scarfMesh = new THREE.Mesh(scarfGeo, scarfMaterial);
-        scarfMesh.castShadow = true;
-        group.add(scarfMesh);
         break;
       }
 
@@ -486,6 +572,32 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         const zip = new THREE.Mesh(zipGeo, darkAccentMat);
         zip.position.y = 0.77;
         group.add(zip);
+        break;
+      }
+
+      case "laptop-sleeve": {
+        const sleeveShape = new THREE.Shape();
+        sleeveShape.moveTo(-1.22, -0.78);
+        sleeveShape.quadraticCurveTo(-1.3, -0.78, -1.3, -0.68);
+        sleeveShape.lineTo(-1.3, 0.63);
+        sleeveShape.quadraticCurveTo(-1.3, 0.78, -1.15, 0.78);
+        sleeveShape.lineTo(1.15, 0.78);
+        sleeveShape.quadraticCurveTo(1.3, 0.78, 1.3, 0.63);
+        sleeveShape.lineTo(1.3, -0.68);
+        sleeveShape.quadraticCurveTo(1.3, -0.78, 1.22, -0.78);
+        sleeveShape.closePath();
+        const sleeveGeometry = new THREE.ExtrudeGeometry(sleeveShape, { depth: 0.22, bevelEnabled: true, bevelSegments: 4, bevelSize: 0.06, bevelThickness: 0.06 });
+        fitFabricUvs(sleeveGeometry);
+        const sleeve = new THREE.Mesh(sleeveGeometry, makeFabricMaterial((batikMaterial as THREE.MeshStandardMaterial).map!));
+        sleeve.position.z = -0.11;
+        sleeve.castShadow = true;
+        group.add(sleeve);
+        const zipper = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.055, 0.06), darkAccentMat);
+        zipper.position.set(0, 0.68, 0.15);
+        group.add(zipper);
+        const pull = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.055, 0.045), woodMat);
+        pull.position.set(1.08, 0.68, 0.18);
+        group.add(pull);
         break;
       }
 
@@ -732,9 +844,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
       textureRef.current = texture;
 
       const material = new THREE.MeshStandardMaterial({
+        ...fabricFinish(currentDesign.material),
         map: texture,
-        roughness: currentDesign.material === "Satin" ? 0.35 : currentDesign.material === "Linen blend" ? 0.85 : 0.65,
-        metalness: currentDesign.material === "Satin" ? 0.12 : 0.02,
         name: "batik-print",
       });
 
@@ -831,10 +942,12 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     domEl.addEventListener("keydown", onKeyDown);
 
     // 7. Render Loop
-    const animationClock = new THREE.Clock();
+    const animationTimer = new THREE.Timer();
+    animationTimer.connect(document);
     const animate = () => {
       animFrameRef.current = requestAnimationFrame(animate);
-      const delta = animationClock.getDelta();
+      animationTimer.update();
+      const delta = animationTimer.getDelta();
       if (modelGroupRef.current && autoRotateRef.current && !isDraggingRef.current) {
         modelGroupRef.current.rotation.y += 0.008;
       }
@@ -887,6 +1000,7 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
     return () => {
       destroyed = true;
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      animationTimer.dispose();
       resizeObserver.disconnect();
       fitCameraRef.current = null;
       domEl.removeEventListener("pointerdown", onPointerDown);
@@ -908,6 +1022,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         materials.forEach((material) => material.dispose());
       }
       fabricMaterials.clear();
+      fabricSurfaceMapsRef.current.forEach((map) => map.dispose());
+      fabricSurfaceMapsRef.current.clear();
       textureRef.current?.dispose();
       textureRef.current = null;
       plinth.geometry.dispose();
@@ -971,8 +1087,8 @@ export function Batik3DViewer({ design, zoom = 1, className = "" }: Batik3DViewe
         fabricMaterialsRef.current.forEach((material) => {
           if (previousTexture && material.map === previousTexture) {
             material.map = newTexture;
-            material.roughness = design.material === "Satin" ? 0.35 : design.material === "Linen blend" ? 0.85 : 0.65;
-            material.metalness = design.material === "Satin" ? 0.12 : 0.02;
+            material.bumpMap = fabricSurfaceMap(design.material);
+            Object.assign(material, fabricFinish(design.material));
             material.needsUpdate = true;
           }
         });

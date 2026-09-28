@@ -1,5 +1,55 @@
 import { MOTIFS, PRODUCTS, productFor, type Design } from "./catalog";
 const escapeXml = (value: string) => value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]!);
+
+function artworkPalette(image: HTMLImageElement): [string, string, string, string] {
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 64;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return ["#29243a", "#df775d", "#fffaf1", "#b69ac8"];
+  const scale = Math.min(64 / image.naturalWidth, 64 / image.naturalHeight);
+  const width = image.naturalWidth * scale;
+  const height = image.naturalHeight * scale;
+  context.drawImage(image, (64 - width) / 2, (64 - height) / 2, width, height);
+  const pixels = context.getImageData(0, 0, 64, 64).data;
+  const buckets = new Map<string, { count: number; r: number; g: number; b: number }>();
+  for (let index = 0; index < pixels.length; index += 4) {
+    if (pixels[index + 3] < 96) continue;
+    const red = pixels[index]!;
+    const green = pixels[index + 1]!;
+    const blue = pixels[index + 2]!;
+    const key = [red >> 4, green >> 4, blue >> 4].join(",");
+    const bucket = buckets.get(key) ?? { count: 0, r: 0, g: 0, b: 0 };
+    bucket.count += 1;
+    bucket.r += red;
+    bucket.g += green;
+    bucket.b += blue;
+    buckets.set(key, bucket);
+  }
+  const candidates = [...buckets.values()].sort((first, second) => second.count - first.count).slice(0, 40).map((bucket) => ({
+    count: bucket.count,
+    colour: [bucket.r, bucket.g, bucket.b].map((channel) => Math.round(channel / bucket.count)),
+  }));
+  if (!candidates.length) return ["#29243a", "#df775d", "#fffaf1", "#b69ac8"];
+  const selected = [candidates[0]!];
+  while (selected.length < 4) {
+    const next = candidates.filter((candidate) => !selected.includes(candidate)).sort((first, second) => {
+      const score = (candidate: typeof first) => Math.min(...selected.map((colour) => Math.sqrt(candidate.colour.reduce((sum, channel, index) => sum + (channel - colour.colour[index]!) ** 2, 0)))) * Math.sqrt(candidate.count / candidates[0]!.count);
+      return score(second) - score(first);
+    })[0];
+    if (!next) break;
+    selected.push(next);
+  }
+  const hex = (colour: typeof candidates[number]["colour"]) => "#" + colour.map((channel) => Math.round(channel).toString(16).padStart(2, "0")).join("");
+  if (selected.length < 4) return ["#29243a", "#df775d", "#fffaf1", "#b69ac8"];
+  const luminance = (colour: typeof candidates[number]["colour"]) => colour[0]! * 0.2126 + colour[1]! * 0.7152 + colour[2]! * 0.0722;
+  const byLightness = [...selected].sort((first, second) => luminance(first.colour) - luminance(second.colour));
+  const ink = byLightness[0]!;
+  const background = byLightness.at(-1)!;
+  const accents = selected.filter((candidate) => candidate !== ink && candidate !== background).sort((first, second) => second.count - first.count);
+  return [hex(ink.colour), hex(accents[0]!.colour), hex(background.colour), hex(accents[1]!.colour)];
+}
+
 export async function importMotifImage(file: File) {
   if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Choose a PNG, JPEG or WebP image.");
   if (file.size > 8 * 1024 * 1024) throw new Error("Choose an image smaller than 8 MB.");
@@ -9,6 +59,7 @@ export async function importMotifImage(file: File) {
     image.src = source;
     await image.decode();
     if (image.naturalWidth > 10000 || image.naturalHeight > 10000) throw new Error("This image is too large to process.");
+    const palette = artworkPalette(image);
     let webpSupported = true;
     for (const size of [128, 96]) {
       const canvas = document.createElement("canvas");
@@ -22,12 +73,15 @@ export async function importMotifImage(file: File) {
       context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", size === 128 ? 0.62 : 0.48));
       if (blob && blob.type !== "image/webp") webpSupported = false;
-      if (blob?.type === "image/webp" && blob.size <= 5900) return await new Promise<string>((resolve, reject) => {
+      if (blob?.type === "image/webp" && blob.size <= 5900) {
+        const motif = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Image conversion failed."));
         reader.onerror = () => reject(new Error("Image conversion failed."));
         reader.readAsDataURL(blob);
-      });
+        });
+        return { motif, palette };
+      }
     }
     if (!webpSupported) throw new Error("Compact image conversion is unavailable in this browser.");
     throw new Error("This image is too detailed to save as a compact repeating motif. Try a simpler image.");
@@ -78,7 +132,8 @@ export function designSvg(d: Design, mode: PreviewMode = "product") {
   const w = d.repeat === "half-drop" ? tile * 2 : tile;
   const h = d.repeat === "brick" ? tile * 2 : tile;
   const motif = motifSvg(d.motif, d.ink, d.accent, d);
-  const draw = (x: number, y: number) => `<g transform="translate(${x + d.spacing / 2} ${y + d.spacing / 2}) scale(${d.scale / 60})"><g transform="${d.mirror ? "translate(60 0) scale(-1 1)" : ""}" opacity="${d.opacity}">${motif}</g>${d.secondary !== "none" ? `<g transform="translate(${d.secondaryX} ${d.secondaryY}) rotate(${d.secondaryRotation} 30 30) scale(${d.secondaryScale})" opacity="${d.secondaryOpacity}">${motifSvg(d.secondary, d.detail, d.accent, d)}</g>` : ""}${d.layers.map((layer) => `<g transform="translate(${layer.x} ${layer.y}) rotate(${layer.rotation} 30 30) scale(${layer.scale})" opacity="${layer.opacity}">${motifSvg(layer.motif, layer.colour === "ink" ? d.ink : layer.colour === "accent" ? d.accent : d.detail, layer.colour === "accent" ? d.ink : d.accent, d)}</g>`).join("")}</g>`;
+  const motifTransform = [d.mirror ? "translate(60 0) scale(-1 1)" : "", d.mirrorVertical ? "translate(0 60) scale(1 -1)" : ""].filter(Boolean).join(" ");
+  const draw = (x: number, y: number) => `<g transform="translate(${x + d.spacing / 2} ${y + d.spacing / 2}) scale(${d.scale / 60})"><g transform="${motifTransform}" opacity="${d.opacity}">${motif}</g>${d.secondary !== "none" ? `<g transform="translate(${d.secondaryX} ${d.secondaryY}) rotate(${d.secondaryRotation} 30 30) scale(${d.secondaryScale})" opacity="${d.secondaryOpacity}">${motifSvg(d.secondary, d.detail, d.accent, d)}</g>` : ""}${d.layers.map((layer) => `<g transform="translate(${layer.x} ${layer.y}) rotate(${layer.rotation} 30 30) scale(${layer.scale})" opacity="${layer.opacity}">${motifSvg(layer.motif, layer.colour === "ink" ? d.ink : layer.colour === "accent" ? d.accent : d.detail, layer.colour === "accent" ? d.ink : d.accent, d)}</g>`).join("")}</g>`;
   let tiles = draw(0,0);
   if (d.repeat === "brick") tiles += draw(-tile/2,tile) + draw(tile/2,tile);
   if (d.repeat === "half-drop") tiles += draw(tile,-tile/2) + draw(tile,tile/2);
