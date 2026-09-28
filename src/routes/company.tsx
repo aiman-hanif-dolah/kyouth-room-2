@@ -139,6 +139,7 @@ function CompanyPage() {
             <div key={m.id}>
               <p className="mb-1.5 text-xs font-medium text-muted-foreground">Mood board {i + 1}</p>
               <SlotImageSlot item={m} aspect="aspect-square" slot="company.moodboard" section="s1" onChange={(v) => u1((d) => { d.moodboard[i] = v; })} onDelete={() => u1((d) => { d.moodboard.splice(i, 1); })} />
+            </div>
           ))}
         </div>
         <Button size="sm" className="mt-3" onClick={() => u1((d) => { d.moodboard.push(newImage()); })}><Plus className="size-3.5" /> Mood board prompt</Button>
