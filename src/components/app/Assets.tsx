@@ -181,6 +181,7 @@ export function AssetCard({ a, list, index, showSection, vertical }: { a: Asset;
           <Button size="sm" variant="danger" className="ml-auto" aria-label="Delete file" onClick={() => setConfirm(true)}><Trash2 className="size-3.5" /></Button>
         )}
       </div>
+      {view !== null && <Lightbox items={images} index={view} onClose={() => setView(null)} onNavigate={setView} />}
     </div>
   );
 }
