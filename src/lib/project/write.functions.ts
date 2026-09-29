@@ -13,11 +13,12 @@ export const saveWorkspace = createServerFn({ method: "POST" })
     const { requireEdit } = await import("../gate.server");
     await requireEdit();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const updatedAt = new Date().toISOString();
     const { error } = await supabaseAdmin
       .from("workspace_state")
-      .upsert({ id: "main", state: data.state as never, client_id: String(data.clientId ?? ""), updated_by: null, updated_at: new Date().toISOString() });
+      .upsert({ id: "main", state: data.state as never, client_id: String(data.clientId ?? ""), updated_by: null, updated_at: updatedAt });
     if (error) throw new Error(error.message);
-    return { ok: true as const };
+    return { ok: true as const, updatedAt };
   });
 
 /** Start an upload: returns a signed upload URL the browser PUTs the file to. */

@@ -26,7 +26,7 @@ const NAV = [
 
 export function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const { state, sync, syncError } = useProject();
+  const { state, sync, syncError, syncNotice } = useProject();
   const { canEdit, unlock, lock } = useEditMode();
   const { primaryLogoId, urls } = useAssets();
   const primaryLogoUrl = primaryLogoId ? urls[primaryLogoId] : undefined;
@@ -38,7 +38,7 @@ export function Shell({ children }: { children: ReactNode }) {
   }, [primaryLogoId]);
   const syncText = !canEdit
     ? "Published view: read-only, same content for everyone. Switch to Edit with the passcode to change content or upload files."
-    : sync === "loading" ? "Connecting to the shared workspace…" : sync === "saving" ? "Saving to the shared workspace…" : sync === "error" ? `Shared save failed: ${syncError}. Your edits stay in this browser until it works again.` : "Edit mode. Changes save to the shared workspace and appear on everyone's devices. If two people edit at the same moment, the last save wins.";
+    : sync === "loading" ? "Connecting to the shared workspace…" : sync === "refreshing" ? "Checking the shared workspace for teammates' changes…" : sync === "saving" ? "Saving to the shared workspace…" : sync === "error" ? `Shared save failed: ${syncError}. Your edits stay in this browser until it works again.` : "Edit mode. Changes save to the shared workspace and appear on everyone's devices. If two people edit at the same moment, the last save wins.";
   const [askCode, setAskCode] = useState(false);
   const [code, setCode] = useState("");
   const [badCode, setBadCode] = useState(false);
@@ -161,6 +161,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <div className="mt-auto space-y-3 rounded-lg border border-border p-3 text-[11px] leading-relaxed text-muted-foreground">
         {modeToggle}
         <p className={sync === "error" ? "text-destructive" : undefined}>{syncText}</p>
+        {syncNotice ? <p className="text-warning">{syncNotice}</p> : null}
       </div>
     </div>
   );
