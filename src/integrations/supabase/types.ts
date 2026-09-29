@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_reviews: {
+        Row: {
+          content_hash: string
+          error: string
+          result: Json
+          review_state: string
+          reviewed_at: string | null
+          section: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          content_hash?: string
+          error?: string
+          result?: Json
+          review_state?: string
+          reviewed_at?: string | null
+          section: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          content_hash?: string
+          error?: string
+          result?: Json
+          review_state?: string
+          reviewed_at?: string | null
+          section?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       project_assets: {
         Row: {
           alt_text: string
