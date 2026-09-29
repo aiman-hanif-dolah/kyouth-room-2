@@ -12,3 +12,15 @@ export const suggestAssetMeta = createServerFn({ method: "POST" })
     const { generateAssetMeta } = await import("./ai.server");
     return generateAssetMeta({ storagePath: data.storagePath, fileName: data.fileName, slotLabel: data.slotLabel });
   });
+
+/** Automatic review of all hours (focus on changed ones). Skips identical content. */
+export const runAiReview = createServerFn({ method: "POST" })
+  .inputValidator((data: { changed: string[] }) => data)
+  .handler(async ({ data }) => {
+    const { requireEdit } = await import("../gate.server");
+    await requireEdit();
+    const { runReview } = await import("./review-ai.server");
+    const ok = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"];
+    const changed = (Array.isArray(data.changed) ? data.changed : []).filter((x) => ok.includes(x)) as ("s1")[];
+    return runReview(changed);
+  });
