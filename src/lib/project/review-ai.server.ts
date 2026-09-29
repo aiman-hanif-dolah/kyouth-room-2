@@ -6,6 +6,7 @@ import type { Asset } from "./assets";
 import { SECTIONS } from "./sections";
 import { createSeed } from "./seed";
 import { runChecks } from "./review";
+import { slices } from "./review-slices";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1";
 const MODEL = "openai/gpt-6-astra";
@@ -18,20 +19,6 @@ export interface HourReview {
   missing: string[];
   issues: string[];
   suggestions: string[];
-}
-
-function slices(s: ProjectState): Record<SectionId, unknown> {
-  const c = s.company;
-  return {
-    s1: { ideas: c.ideas, concepts: c.concepts, selectedConceptId: c.selectedConceptId, rationale: c.rationale, name: c.name, productName: c.productName, tagline: c.tagline, mission: c.mission, vision: c.vision, values: c.values, palette: c.palette, logo: c.logo, moodboard: c.moodboard },
-    s2: { background: c.background, foundingStory: c.foundingStory, founders: c.founders, orgStructure: c.orgStructure, services: c.services, usp: c.usp },
-    s3: s.business,
-    s4: s.product,
-    s5: s.customers,
-    s6: s.marketing,
-    s7: { promptLibrary: s.prompts, promptsActuallyUsed: s.usedPrompts },
-    s8: s.presentation.map((p) => ({ ...p, speakers: p.speakerIds.map((id) => s.members.find((m) => m.id === id)?.name ?? "?") })),
-  };
 }
 
 async function sha(text: string) {
