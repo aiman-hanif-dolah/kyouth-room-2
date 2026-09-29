@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Maximize, Pause, Play, Printer, RotateCcw, X, StickyNote, ArrowLeft } from "lucide-react";
 import { useProject, memberName } from "@/lib/project/store";
-import { buildSlides } from "@/components/app/presentationSlides";
+import { buildCompanyProfileSlides, buildSlides } from "@/components/app/presentationSlides";
 import { useAssets } from "@/lib/project/assets";
 import { Badge, Button, Card, PageHeader, NumField } from "@/components/app/kit";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,11 @@ function PresentationPage() {
   const { state, update, canEdit } = useProject();
   const u = (fn: (d: typeof state) => void) => update(fn, "s7");
   const media = useAssets();
-  const slides = buildSlides(state, true, media);
+  const [deckMode, setDeckMode] = useState<"talk" | "profile">("talk");
+  const talkSlides = buildSlides(state, true, media);
+  const profileSlides = buildCompanyProfileSlides(state, media);
+  const hasCompanyLogo = !!state.company.logo.url || media.assets.some((asset) => asset.kind === "image" && asset.slot === "company.logo");
+  const slides = deckMode === "profile" ? profileSlides : talkSlides;
   const total = state.presentation.reduce((a, p) => a + p.minutes, 0);
   const [presenting, setPresenting] = useState(false);
   const [start, setStart] = useState(0);
@@ -37,14 +41,19 @@ function PresentationPage() {
   return (
     <>
       <div className="no-print">
-        <PageHeader eyebrow="Hours 7 and 8" title="40-minute presentation" description="Slides are generated live from the workspace. Edit a section and the presentation updates. Only timing, speakers and speaker notes are edited here.">
+        <PageHeader eyebrow={deckMode === "profile" ? "Hour 2 · Company profile" : "Hours 7 and 8"} title={deckMode === "profile" ? "Company profile · 8 slides" : "40-minute presentation"} description={deckMode === "profile" ? "A separate, project-backed profile deck. It stays distinct from the timed 40-minute presentation." : "Slides are generated live from the workspace. Edit a section and the presentation updates. Only timing, speakers and speaker notes are edited here."}>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setPrinting(true)}><Printer className="size-4" /> Print view</Button>
-            <Button variant="primary" onClick={() => { setStart(0); setPresenting(true); }}><Play className="size-4" /> Present</Button>
+            <Button variant="primary" onClick={() => { setStart(0); setPresenting(true); }}><Play className="size-4" /> Present {deckMode === "profile" ? "profile" : "talk"}</Button>
           </div>
         </PageHeader>
 
-        <Card title="Outline and timing" subtitle="Required order: company, business plan, product demo, marketing, demographics, AI prompt engineering (main highlight)." action={<Badge tone={total === 40 ? "success" : "danger"}>{total} / 40 min</Badge>}>
+        <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Choose presentation deck">
+          <Button variant={deckMode === "talk" ? "primary" : "secondary"} aria-pressed={deckMode === "talk"} onClick={() => setDeckMode("talk")}>40-minute talk · {talkSlides.length} slides</Button>
+          <Button variant={deckMode === "profile" ? "primary" : "secondary"} aria-pressed={deckMode === "profile"} onClick={() => setDeckMode("profile")}>Company profile · {profileSlides.length} slides</Button>
+        </div>
+
+        {deckMode === "talk" && <Card title="Outline and timing" subtitle="Required order: company, business plan, product demo, marketing, demographics, AI prompt engineering (main highlight)." action={<Badge tone={total === 40 ? "success" : "danger"}>{total} / 40 min</Badge>}>
           <div className="mb-4 flex h-3 overflow-hidden rounded-full bg-elevated">
             {state.presentation.map((p, i) => (
               <div key={p.key} title={`${p.title}: ${p.minutes} min`} className={cn("h-full border-r border-background", p.key === "prompts" ? "bg-brand" : i % 2 ? "bg-border-strong" : "bg-muted-foreground/50")} style={{ width: `${(p.minutes / Math.max(total, 40)) * 100}%` }} />
@@ -110,13 +119,14 @@ function PresentationPage() {
             ))}
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">Parts cannot be deleted because each is required by the brief. Set minutes to change emphasis.</p>
-        </Card>
+        </Card>}
 
-        <h2 className="mb-3 mt-10 text-xl font-normal tracking-tight">Slide preview ({slides.length})</h2>
+        {deckMode === "profile" && <Card className="mb-6" title="Profile audit notes" subtitle={`Fictional company and founders are clearly identified. The target audience is labelled as a hypothesis. ${hasCompanyLogo ? "Contact information" : "Logo and contact information"} ${hasCompanyLogo ? "is" : "are"} marked [DETAIL NEEDED].`} />}
+        <h2 className="mb-3 mt-10 text-xl font-normal tracking-tight">{deckMode === "profile" ? "Company profile slide preview" : "Slide preview"} ({slides.length})</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {slides.map((s, i) => (
-            <button key={i} type="button" onClick={() => { setStart(i); setPresenting(true); }} className="group rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-brand">
-              <p className="font-mono text-[10px] text-muted-foreground">{String(i + 1).padStart(2, "0")} · {state.presentation.find((p) => p.key === s.part)?.title}</p>
+            <button key={`${deckMode}-${i}`} type="button" onClick={() => { setStart(i); setPresenting(true); }} className="group rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-brand">
+              <p className="font-mono text-[10px] text-muted-foreground">{String(i + 1).padStart(2, "0")} · {deckMode === "profile" ? "Company profile" : state.presentation.find((p) => p.key === s.part)?.title}</p>
               <p className="mt-1 text-sm group-hover:text-brand-soft">{s.title}</p>
             </button>
           ))}
@@ -131,7 +141,7 @@ function PresentationPage() {
                 <ArrowLeft className="size-4" /> Back to outline
               </Button>
               <span className="text-xs text-muted-foreground">
-                A4 Pamphlet View · 15 slides formatted for print and presentation
+              A4 Pamphlet View · {slides.length} slides formatted for print and presentation
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -146,7 +156,7 @@ function PresentationPage() {
 
           <div className="print-view-container flex-1 overflow-auto bg-neutral-900/60 p-4 md:p-8">
             <div className="mx-auto max-w-[1100px] space-y-6">
-              {buildSlides(state, false, media).map((s, i) => (
+              {(deckMode === "profile" ? buildCompanyProfileSlides(state, media) : buildSlides(state, false, media)).map((s, i) => (
                 <section
                   key={i}
                   className="print-slide deck-stage rounded-xl border border-border/80 shadow-2xl"
@@ -154,7 +164,7 @@ function PresentationPage() {
                 >
                   <p className="deck-header">
                     <span>{state.company.name} · {s.title}</span>
-                    <span>Slide {i + 1} / 15</span>
+                    <span>Slide {i + 1} / {slides.length}</span>
                   </p>
                   <div className="flex-1">
                     {s.body}
@@ -166,15 +176,15 @@ function PresentationPage() {
         </div>
       )}
 
-      {presenting && <Presenter start={start} onClose={() => setPresenting(false)} />}
+      {presenting && <Presenter start={start} mode={deckMode} onClose={() => setPresenting(false)} />}
     </>
   );
 }
 
-function Presenter({ start, onClose }: { start: number; onClose: () => void }) {
+function Presenter({ start, mode, onClose }: { start: number; mode: "talk" | "profile"; onClose: () => void }) {
   const { state } = useProject();
   const media = useAssets();
-  const slides = buildSlides(state, true, media);
+  const slides = mode === "profile" ? buildCompanyProfileSlides(state, media) : buildSlides(state, true, media);
   const [i, setI] = useState(Math.max(0, start));
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
   const [notes, setNotes] = useState(false);
@@ -184,8 +194,8 @@ function Presenter({ start, onClose }: { start: number; onClose: () => void }) {
   const idx = Math.min(i, slides.length - 1);
   const slide = slides[idx];
   const part = state.presentation.find((p) => p.key === slide.part)!;
-  const planned = state.presentation.reduce((a, p) => a + p.minutes, 0) * 60;
-  const partStart = state.presentation.slice(0, state.presentation.indexOf(part)).reduce((a, p) => a + p.minutes, 0) * 60;
+  const planned = mode === "profile" ? part.minutes * 60 : state.presentation.reduce((a, p) => a + p.minutes, 0) * 60;
+  const partStart = mode === "profile" ? 0 : state.presentation.slice(0, state.presentation.indexOf(part)).reduce((a, p) => a + p.minutes, 0) * 60;
   const next = useCallback(() => { setDirection("forward"); setI((x) => Math.min(slides.length - 1, x + 1)); }, [slides.length]);
   const prev = useCallback(() => { setDirection("backward"); setI((x) => Math.max(0, x - 1)); }, []);
 
@@ -214,7 +224,7 @@ function Presenter({ start, onClose }: { start: number; onClose: () => void }) {
   return (
     <div ref={ref} className="fixed inset-0 z-[90] flex flex-col bg-background" role="dialog" aria-label="Presentation mode">
       <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2 text-xs">
-        <span className="text-muted-foreground">{part.title} · {part.speakerIds.map((id) => memberName(state, id)).join(", ") || "No speaker"}</span>
+        <span className="text-muted-foreground">{mode === "profile" ? `Company profile · ${slide.title}` : `${part.title} · ${part.speakerIds.map((id) => memberName(state, id)).join(", ") || "No speaker"}`}</span>
         <span className="text-muted-foreground">Updated {new Date(state.updatedAt).toLocaleString("en-MY")}</span>
         <div className="ml-auto flex items-center gap-1">
           <span className={cn("font-mono tabular-nums", behind ? "text-destructive" : "text-foreground")} aria-live="off">{fmt(elapsed)} / {fmt(planned)}</span>
@@ -229,9 +239,9 @@ function Presenter({ start, onClose }: { start: number; onClose: () => void }) {
 
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1 overflow-auto">
-          <div key={idx} className={`deck-stage deck-enter-${direction}`} data-tone={slide.tone}>
+          <div key={`${mode}-${idx}`} className={`deck-stage deck-enter-${direction}`} data-tone={slide.tone}>
             <div className="mx-auto max-w-[1400px]">
-              <p className="deck-header"><span>{state.company.name} / {part.title}</span><span>{String(idx + 1).padStart(2, "0")} / {slides.length}</span></p>
+              <p className="deck-header"><span>{state.company.name} / {mode === "profile" ? "Company profile" : part.title}</span><span>{String(idx + 1).padStart(2, "0")} / {slides.length}</span></p>
               {idx !== 0 && <h2 className="deck-title">{slide.title}</h2>}
               {slide.body}
             </div>
