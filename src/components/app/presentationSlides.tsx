@@ -21,8 +21,18 @@ export function buildSlides(s: ProjectState, interactive = true, media: SlideMed
   const product = <div className="deck-product"><ProductPreview kind="tote" motif="kawung" {...colours} scale={1.2} /></div>;
   const images = media.assets.filter((a) => a.kind === "image" && a.in_presentation && media.urls[a.id]);
   const gallery = (section: string, fallback: ReactNode) => {
-    const list = images.filter((a) => a.section_id === section);
-    return list.length ? <div className="deck-gallery">{list.map((a) => <figure key={a.id}><img src={media.urls[a.id]} alt={a.alt_text || a.caption} /><figcaption>{a.caption}</figcaption></figure>)}</div> : fallback;
+    const sectionImages = images.filter((a) => a.section_id === section);
+    const list = section === "s6"
+      ? ["ig", "tt", "fb"].flatMap((platform) => {
+        const asset = sectionImages.find((a) => a.slot.startsWith(`marketing.sample.${platform}`));
+        return asset ? [asset] : [];
+      })
+      : sectionImages;
+    return list.length ? <div className={section === "s6" ? "deck-gallery deck-gallery-campaign" : "deck-gallery"}>{list.map((a) => {
+      const platform = a.slot.match(/^marketing\.sample\.(ig|tt|fb)/)?.[1];
+      const platformName = platform === "ig" ? "Instagram" : platform === "tt" ? "TikTok" : platform === "fb" ? "Facebook" : a.file_name;
+      return <figure key={a.id}><img src={media.urls[a.id]} alt={a.alt_text || a.caption || a.file_name} /><figcaption>{a.caption || platformName}</figcaption></figure>;
+    })}</div> : fallback;
   };
   const split = (copy: ReactNode, visual: ReactNode) => <div className="deck-split"><div className="deck-copy deck-reveal">{copy}</div><div className="deck-art deck-reveal">{visual}</div></div>;
   const [problemWant, problemBarrier] = lead(b.problem).split(/,\s*but\s+/i);
