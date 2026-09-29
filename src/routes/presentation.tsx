@@ -29,7 +29,7 @@ function PresentationPage() {
   const [deckMode, setDeckMode] = useState<"talk" | "profile">("talk");
   const talkSlides = buildSlides(state, true, media);
   const profileSlides = buildCompanyProfileSlides(state, media);
-  const hasCompanyLogo = !!state.company.logo.url || media.assets.some((asset) => asset.kind === "image" && asset.slot === "company.logo");
+  const hasCompanyLogo = media.assets.some((asset) => asset.kind === "image" && asset.slot === "company.logo" && !!media.urls[asset.id]);
   const slides = deckMode === "profile" ? profileSlides : talkSlides;
   const total = state.presentation.reduce((a, p) => a + p.minutes, 0);
   const [presenting, setPresenting] = useState(false);
@@ -121,7 +121,7 @@ function PresentationPage() {
           <p className="mt-2 text-[11px] text-muted-foreground">Parts cannot be deleted because each is required by the brief. Set minutes to change emphasis.</p>
         </Card>}
 
-        {deckMode === "profile" && <Card className="mb-6" title="Profile audit notes" subtitle={`Fictional company and founders are clearly identified. The target audience is labelled as a hypothesis. ${hasCompanyLogo ? "Contact information" : "Logo and contact information"} ${hasCompanyLogo ? "is" : "are"} marked [DETAIL NEEDED].`} />}
+        {deckMode === "profile" && <Card className="mb-6" title="Profile audit notes" subtitle={`The target audience is labelled as a hypothesis. Company founder roles and bios are marked [DETAIL NEEDED]. ${hasCompanyLogo ? "Contact information" : "Logo and contact information"} ${hasCompanyLogo ? "is" : "are"} marked [DETAIL NEEDED].`} />}
         <h2 className="mb-3 mt-10 text-xl font-normal tracking-tight">{deckMode === "profile" ? "Company profile slide preview" : "Slide preview"} ({slides.length})</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {slides.map((s, i) => (
