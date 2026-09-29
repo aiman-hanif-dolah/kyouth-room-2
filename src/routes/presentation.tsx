@@ -120,7 +120,7 @@ function PresentationPage() {
           <p className="mt-2 text-[11px] text-muted-foreground">Parts cannot be deleted because each is required by the brief. Set minutes to change emphasis.</p>
         </Card>}
 
-        {deckMode === "profile" && <Card className="mb-6" title="Profile audit notes" subtitle="The target audience and USP are labelled as hypotheses. Founder roles and bios are identified as fictional; the CHRO and finance-bio conflict is marked [DETAIL NEEDED]. Contact information is [DETAIL NEEDED]. The uploaded primary logo appears on the cover." />}
+        {deckMode === "profile" && <Card className="mb-6" title="Profile audit notes" subtitle="The target market and USP are labelled as hypotheses. Founder roles and bios are fictional; the CHRO bio conflict, finance-workstream owner and contact details are marked [DETAIL NEEDED]. The uploaded primary logo appears on the cover." />}
         <h2 className="mb-3 mt-10 text-xl font-normal tracking-tight">{deckMode === "profile" ? "Company profile slide preview" : "Slide preview"} ({slides.length})</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {slides.map((s, i) => (
