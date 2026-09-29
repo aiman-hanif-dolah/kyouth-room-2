@@ -7,7 +7,7 @@ import { useAssets } from "@/lib/project/assets";
 import { runChecks, sectionProgress } from "@/lib/project/review";
 import { getBrandHead } from "@/lib/project/brand.functions";
 import { Card, PageHeader, Progress, StatusBadge, Badge, Button } from "@/components/app/kit";
-import { MemberPicker, StatusSelect } from "@/components/app/SectionTask";
+import { AiReviewBox, MemberPicker, StatusSelect } from "@/components/app/SectionTask";
 import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/")({
@@ -119,6 +119,7 @@ function Dashboard() {
                   <MemberPicker section={s.id} />
                 </div>
               </div>
+              <div className="mt-3"><AiReviewBox section={s.id} compact /></div>
               {t.reviewerNotes && <p className="mt-3 rounded-md bg-elevated px-3 py-2 text-xs text-subtle">Reviewer: {t.reviewerNotes}</p>}
               <div className="mt-auto flex items-center gap-3 pt-4">
                 <Progress value={progress[i]} />
