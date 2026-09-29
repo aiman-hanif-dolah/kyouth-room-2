@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 - Shared project text lives in one `workspace_state` row ('main') synced with realtime; localStorage is only an offline cache. Why: all five teammates must see the same workspace.
 - Uploaded files go to the private `project-assets` bucket with metadata in `project_assets`; slides and checks read assets via `useAssets()`. Why: no base64 in state, presentation reflows from one source.
+- Automatic AI reviews live in the `ai_reviews` table (one row per hour), written only by the server fn `runAiReview` after a 20s client debounce; identical content is skipped by hash. Why: batching and dedupe keep credit use low, and results are shared live.
