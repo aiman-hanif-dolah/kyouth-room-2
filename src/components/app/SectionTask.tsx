@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Sparkles } from "lucide-react";
+import { useReviews } from "@/lib/project/reviews";
 import { useProject } from "@/lib/project/store";
 import { sectionById } from "@/lib/project/sections";
-import { STATUS_LABEL, type SectionId, type Status } from "@/lib/project/types";
-import { Area, Badge, Button, ProvenanceBadge, Select, StatusBadge } from "./kit";
+import type { SectionId } from "@/lib/project/types";
+import { Area, Badge, ProvenanceBadge, StatusBadge } from "./kit";
 import { cn } from "@/lib/utils";
 
 export function MemberPicker({ section }: { section: SectionId }) {
@@ -42,14 +43,44 @@ export function MemberPicker({ section }: { section: SectionId }) {
 }
 
 export function StatusSelect({ section }: { section: SectionId }) {
-  const { state, update } = useProject();
+  const { state } = useProject();
   return (
-    <Select<Status>
-      label="Status"
-      value={state.tasks[section].status}
-      onChange={(v) => update((d) => { d.tasks[section].status = v; })}
-      options={(Object.keys(STATUS_LABEL) as Status[]).map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
-    />
+    <div>
+      <p className="mb-1.5 text-xs font-medium text-muted-foreground">Status (set by AI review)</p>
+      <StatusBadge status={state.tasks[section].status} />
+    </div>
+  );
+}
+
+/** Evidence, missing items and suggested fixes from the latest automatic AI review. */
+export function AiReviewBox({ section, compact }: { section: SectionId; compact?: boolean }) {
+  const { reviews, stale } = useReviews();
+  const r = reviews[section];
+  const res = r?.result ?? {};
+  const state = stale.has(section) || r?.review_state === "updating" ? "Updating, content changed since last review" : r?.review_state === "error" || r?.review_state === "paused" ? r.error : "";
+  const when = r?.reviewed_at ? new Date(r.reviewed_at).toLocaleString("en-MY", { dateStyle: "medium", timeStyle: "short" }) : "";
+  const List = ({ title, items, tone }: { title: string; items?: string[] | undefined; tone: string }) =>
+    items && items.length ? (
+      <div>
+        <p className={cn("mb-1 text-xs font-medium", tone)}>{title}</p>
+        <ul className="list-disc space-y-0.5 pl-4 text-xs text-subtle">{items.slice(0, compact ? 3 : 8).map((x) => <li key={x}>{x}</li>)}</ul>
+      </div>
+    ) : null;
+  return (
+    <div className="space-y-2 rounded-lg border border-border bg-elevated/40 p-3">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <Sparkles className="size-3.5 text-brand-soft" />
+        <span className="font-medium">AI review</span>
+        <span className="text-muted-foreground">{when ? `Last reviewed ${when}` : "Not reviewed yet"}</span>
+        {state && <span className={cn("rounded-full border px-2 py-0.5", r?.review_state === "error" || r?.review_state === "paused" ? "border-warning text-warning" : "border-border-strong text-brand-soft")}>{state}</span>}
+      </div>
+      {res.summary && <p className="text-xs text-muted-foreground">{res.summary}</p>}
+      <List title="Evidence that aligns" items={res.aligned} tone="text-success" />
+      <List title="Missing" items={res.missing} tone="text-warning" />
+      <List title="Issues and contradictions" items={res.issues} tone="text-warning" />
+      {!compact && <List title="Suggested fixes (apply them yourselves)" items={res.suggestions} tone="text-brand-soft" />}
+      {!compact && <p className="text-[11px] text-muted-foreground">Reviews run automatically about 20 seconds after saved changes in Edit mode. Each review uses AI credits, so edits are batched and unchanged content is skipped.</p>}
+    </div>
   );
 }
 
@@ -81,6 +112,7 @@ function TaskRow({ section }: { section: SectionId }) {
           <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
         </span>
       </button>
+      <div className="px-4 pb-3"><AiReviewBox section={section} /></div>
       {open && (
         <div className="grid gap-5 border-t border-border p-4 md:grid-cols-3">
           <div className="space-y-3 text-sm">
@@ -110,11 +142,6 @@ function TaskRow({ section }: { section: SectionId }) {
               />
               Group has checked and verified this content
             </label>
-            {canEdit && (
-              <Button size="sm" variant="primary" disabled={t.status === "complete"} onClick={() => update((d) => { d.tasks[section].status = "complete"; })}>
-                Mark complete
-              </Button>
-            )}
           </div>
           <div className="space-y-3">
             <Area label="Reviewer notes" rows={2} optional value={t.reviewerNotes} onChange={(v) => update((d) => { d.tasks[section].reviewerNotes = v; })} />

@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ProjectProvider } from "../lib/project/store";
 import { EditModeProvider } from "../lib/project/editmode";
 import { AssetsProvider } from "../lib/project/assets";
+import { ReviewsProvider } from "../lib/project/reviews";
 import { Shell } from "../components/app/Shell";
 
 function NotFoundComponent() {
@@ -130,9 +131,11 @@ function RootComponent() {
       <EditModeProvider>
         <ProjectProvider>
           <AssetsProvider>
-            <Shell>
-              <Outlet />
-            </Shell>
+            <ReviewsProvider>
+              <Shell>
+                <Outlet />
+              </Shell>
+            </ReviewsProvider>
           </AssetsProvider>
         </ProjectProvider>
       </EditModeProvider>
