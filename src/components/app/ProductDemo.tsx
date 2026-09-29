@@ -24,7 +24,7 @@ export function priceFor(kind: ProductKind, qty: number) {
 }
 
 /** Working interactive prototype of the selected product (placeholder concept). */
-export function ProductDemo() {
+export function ProductDemo({ presentation = false }: { presentation?: boolean } = {}) {
   const { state } = useProject();
   const palette = state.company.palette.length >= 2 ? state.company.palette : [{ id: "a", name: "Dark", hex: "#1e2a78" }, { id: "b", name: "Light", hex: "#f4efe6" }];
   const [step, setStep] = useState<Step>("design");
@@ -100,7 +100,7 @@ export function ProductDemo() {
   );
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border-strong bg-background">
+    <div className={cn("overflow-hidden rounded-2xl border border-border-strong bg-background", presentation && "product-demo-presentation")}>
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-brand-soft" />
@@ -117,9 +117,9 @@ export function ProductDemo() {
       </div>
 
       <div className="grid md:grid-cols-[1fr_320px]">
-        <div className="relative grid min-h-[340px] place-items-center bg-card p-6">
+        <div className={cn("relative grid min-h-[340px] place-items-center bg-card p-6", presentation && "min-h-[250px] p-3")}>
           {step === "design" ? (
-            <div className="aspect-square w-full max-w-[320px] overflow-hidden rounded-xl border border-border">
+            <div className={cn("aspect-square w-full max-w-[320px] overflow-hidden rounded-xl border border-border", presentation && "max-w-[250px]")}>
               <BatikPattern motif={motif} fg={fg} bg={bg} accent={accent} scale={scale} />
             </div>
           ) : step === "tracking" ? (
@@ -134,7 +134,7 @@ export function ProductDemo() {
               {progress >= 3 && <p className="text-xs text-success">Delivered in the demo. In real life target is 5 to 7 days.</p>}
             </div>
           ) : (
-            <div className={cn("relative grid w-full place-items-center pt-10", step === "product" && previewMode === "3d" ? "min-h-[390px]" : "min-h-[340px]")}>
+            <div className={cn("relative grid w-full place-items-center pt-10", step === "product" && previewMode === "3d" ? (presentation ? "min-h-[330px]" : "min-h-[390px]") : presentation ? "min-h-[250px]" : "min-h-[340px]", presentation && "pt-2")}>
               {step === "product" && (
                 <div className="absolute right-3 top-3 z-10 flex rounded-full border border-border bg-background/90 p-1 shadow-sm" role="group" aria-label="Product preview mode">
                   {(["2d", "3d"] as const).map((mode) => (
@@ -144,7 +144,7 @@ export function ProductDemo() {
                   ))}
                 </div>
               )}
-              <div key={`${step}-${previewMode}-${kind}`} className={cn("deck-preview-arrive", step === "product" && previewMode === "3d" ? "h-[360px] w-[min(100%,360px)]" : "h-[300px] w-[260px]")}>
+              <div key={`${step}-${previewMode}-${kind}`} className={cn("deck-preview-arrive", step === "product" && previewMode === "3d" ? (presentation ? "h-[300px] w-[min(100%,300px)]" : "h-[360px] w-[min(100%,360px)]") : presentation ? "h-[230px] w-[210px]" : "h-[300px] w-[260px]")}>
                 {step === "product" ? <DesignPreview design={previewDesign} mode={previewMode === "3d" ? "3d" : "product"} zoom={previewMode === "3d" ? 0.9 : 1} className={previewMode === "3d" ? "demo-3d-preview" : ""} /> : <ProductPreview kind={kind} motif={motif} fg={fg} bg={bg} accent={accent} scale={scale} />}
               </div>
               {step === "product" && previewMode === "3d" && <p className="deck-demo-cue">Drag the fabric to inspect the silhouette · Pattern applied live</p>}
@@ -152,7 +152,7 @@ export function ProductDemo() {
           )}
         </div>
 
-        <div className="space-y-4 border-t border-border p-4 md:border-l md:border-t-0">
+        <div className={cn("space-y-4 border-t border-border p-4 md:border-l md:border-t-0", presentation && "space-y-2 p-3")}>
           {step === "design" && (
             <>
               <div>
@@ -160,16 +160,18 @@ export function ProductDemo() {
                 <div className="grid grid-cols-2 gap-1.5">
                   {MOTIFS.map((m) => (
                     <button key={m.key} type="button" aria-pressed={motif === m.key} onClick={() => setMotif(m.key)} className={cn("overflow-hidden rounded-lg border text-left transition-colors", motif === m.key ? "border-brand" : "border-border hover:border-border-strong")}>
-                      <div className="h-12"><BatikPattern motif={m.key} fg={fg} bg={bg} accent={accent} scale={0.6} /></div>
+                      <div className={presentation ? "h-8" : "h-12"}><BatikPattern motif={m.key} fg={fg} bg={bg} accent={accent} scale={0.6} /></div>
                       <p className="px-2 py-1 text-xs">{m.name}</p>
                     </button>
                   ))}
                 </div>
-                <p className="mt-1.5 text-[11px] text-muted-foreground">{MOTIFS.find((m) => m.key === motif)!.meaning}</p>
+                {!presentation && <p className="mt-1.5 text-[11px] text-muted-foreground">{MOTIFS.find((m) => m.key === motif)!.meaning}</p>}
               </div>
               <Swatches label="Motif colour" value={fgId} onChange={setFg} />
-              <Swatches label="Accent" value={accentId} onChange={setAccent} />
-              <Swatches label="Background" value={bgId} onChange={setBg} />
+              {!presentation && <>
+                <Swatches label="Accent" value={accentId} onChange={setAccent} />
+                <Swatches label="Background" value={bgId} onChange={setBg} />
+              </>}
               <label className="block text-[11px] text-muted-foreground">
                 Pattern scale {scale.toFixed(1)}×
                 <input type="range" min={0.5} max={2} step={0.1} value={scale} onChange={(e) => setScale(Number(e.target.value))} className="mt-1 w-full accent-[var(--brand)]" />
@@ -181,7 +183,7 @@ export function ProductDemo() {
             <>
               <div className="space-y-1.5">
                 {PRODUCTS.map((p) => (
-                  <button key={p.key} type="button" aria-pressed={kind === p.key} onClick={() => { setKind(p.key); setSize(p.sizes[Math.floor(p.sizes.length / 2)]); }} className={cn("flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm", kind === p.key ? "border-brand bg-brand/5" : "border-border hover:border-border-strong")}>
+                  <button key={p.key} type="button" aria-pressed={kind === p.key} onClick={() => { setKind(p.key); setSize(p.sizes[Math.floor(p.sizes.length / 2)]); }} className={cn("flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm", presentation && "py-1 text-xs", kind === p.key ? "border-brand bg-brand/5" : "border-border hover:border-border-strong")}>
                     {p.name}<span className="tabular-nums text-muted-foreground">{rm(p.price)}</span>
                   </button>
                 ))}
@@ -202,7 +204,7 @@ export function ProductDemo() {
                   <Button size="sm" aria-label="Increase quantity" disabled={qty >= 20} onClick={() => setQty(qty + 1)}><Plus className="size-3" /></Button>
                 </div>
               </div>
-              <PriceBox price={price} />
+              <PriceBox price={price} compact={presentation} />
               <div className="flex gap-2">
                 <Button onClick={() => setStep("design")}><ChevronLeft className="size-4" /></Button>
                 <Button variant="primary" className="flex-1" onClick={() => setStep("checkout")}>Checkout</Button>
@@ -222,7 +224,7 @@ export function ProductDemo() {
                   <option>FPX online banking</option><option>Touch 'n Go eWallet</option><option>Card</option>
                 </select>
               </label>
-              <PriceBox price={price} />
+              <PriceBox price={price} compact={presentation} />
               <div className="flex gap-2">
                 <Button onClick={() => setStep("product")}><ChevronLeft className="size-4" /></Button>
                 <Button variant="primary" className="flex-1" disabled={!name.trim()} title={!name.trim() ? "Enter a name first" : undefined} onClick={() => { setProgress(0); setStep("tracking"); }}>Place mock order</Button>
@@ -244,9 +246,9 @@ export function ProductDemo() {
   );
 }
 
-function PriceBox({ price }: { price: ReturnType<typeof priceFor> }) {
+function PriceBox({ price, compact = false }: { price: ReturnType<typeof priceFor>; compact?: boolean }) {
   return (
-    <dl className="space-y-1 rounded-lg bg-elevated p-3 text-xs tabular-nums">
+    <dl className={cn("space-y-1 rounded-lg bg-elevated p-3 text-xs tabular-nums", compact && "p-2")}>
       <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd>{rm(price.subtotal)}</dd></div>
       {price.discount > 0 && <div className="flex justify-between text-success"><dt>Bulk discount</dt><dd>-{rm(price.discount)}</dd></div>}
       <div className="flex justify-between"><dt className="text-muted-foreground">Shipping</dt><dd>{price.shipping ? rm(price.shipping) : "Free"}</dd></div>

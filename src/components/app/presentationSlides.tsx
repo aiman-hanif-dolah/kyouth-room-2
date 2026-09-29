@@ -22,16 +22,20 @@ export function buildSlides(s: ProjectState, interactive = true, media: SlideMed
   const images = media.assets.filter((a) => a.kind === "image" && a.in_presentation && media.urls[a.id]);
   const gallery = (section: string, fallback: ReactNode) => {
     const sectionImages = images.filter((a) => a.section_id === section);
-    const list = section === "s6"
-      ? ["ig", "tt", "fb"].flatMap((platform) => {
-        const asset = sectionImages.find((a) => a.slot.startsWith(`marketing.sample.${platform}`));
-        return asset ? [asset] : [];
-      })
-      : sectionImages;
+    if (section === "s6") {
+      const examples = [{ key: "ig", platform: "instagram" }, { key: "tt", platform: "tiktok" }, { key: "fb", platform: "facebook" }];
+      const campaignItems = examples.map(({ key, platform }) => {
+        const platformLabel = platform === "instagram" ? "Instagram" : platform === "tiktok" ? "TikTok" : "Facebook";
+        const asset = sectionImages.find((a) => a.slot.startsWith(`marketing.sample.${key}`));
+        if (asset) return <figure key={asset.id}><img src={media.urls[asset.id]} alt={asset.alt_text || asset.caption || asset.file_name} /><figcaption>{asset.caption || platformLabel}</figcaption></figure>;
+        const sample = s.marketing.samples.find((item) => item.platform === platform);
+        return sample ? <article className={`deck-campaign-card deck-campaign-${platform}`} key={sample.id}><span className="deck-campaign-platform">{platformLabel}</span><h3>{sample.title}</h3><p>{compact(lead(sample.body), 19)}</p><strong>{sample.cta}</strong><small>Concept mockup · project copy</small></article> : null;
+      }).filter(Boolean);
+      return campaignItems.length ? <div className="deck-gallery deck-gallery-campaign">{campaignItems}</div> : fallback;
+    }
+    const list = section === "s1" ? sectionImages.filter((a) => a.slot === "company.moodboard").slice(0, 1) : sectionImages;
     return list.length ? <div className={section === "s6" ? "deck-gallery deck-gallery-campaign" : "deck-gallery"}>{list.map((a) => {
-      const platform = a.slot.match(/^marketing\.sample\.(ig|tt|fb)/)?.[1];
-      const platformName = platform === "ig" ? "Instagram" : platform === "tt" ? "TikTok" : platform === "fb" ? "Facebook" : a.file_name;
-      return <figure key={a.id}><img src={media.urls[a.id]} alt={a.alt_text || a.caption || a.file_name} /><figcaption>{a.caption || platformName}</figcaption></figure>;
+      return <figure key={a.id}><img src={media.urls[a.id]} alt={a.alt_text || a.caption || a.file_name} /><figcaption>{a.caption || a.file_name}</figcaption></figure>;
     })}</div> : fallback;
   };
   const split = (copy: ReactNode, visual: ReactNode) => <div className="deck-split"><div className="deck-copy deck-reveal">{copy}</div><div className="deck-art deck-reveal">{visual}</div></div>;
@@ -46,10 +50,10 @@ export function buildSlides(s: ProjectState, interactive = true, media: SlideMed
   const max = Math.max(1, ...b.projection.map((r) => Math.abs(yearCalc(r).revenue)));
   add("business", "A market with room to grow.", <div className="deck-growth"><section className="deck-market"><span className="deck-label">Market hypotheses · validate before launch</span><Words>{compact(lead(b.market), 11)}</Words><div className="deck-landscape"><span>What exists</span><div>{b.competitors.slice(0, 3).map((x) => <span key={x.id}>{x.name}</span>)}</div></div></section><section className="deck-growth-forecast"><span className="deck-label">Assumption-based forecast</span><div className="deck-chart">{b.projection.map((r) => { const v = yearCalc(r); return <figure key={r.id}><strong>{rm(v.revenue)}</strong><div className="deck-bar-track"><div className="deck-bar" style={{ height: `${Math.max(1, Math.abs(v.revenue) / max * 100)}%` } as CSSProperties} /></div><figcaption>{r.label}<small>Net {rm(v.net)}</small></figcaption></figure>; })}</div><p className="deck-caption">{lead(b.revenueModel)}</p></section></div>, "cream");
   add("product", "From a pattern to your product.", split(<><span className="deck-kicker">Meet {c.productName}</span><Words>{lead(s.product.concept)}</Words><Tiles items={s.product.features.slice(0, 3).map((x) => ({ title: x.title }))} /></>, gallery("s4", product)), "cream");
-  add("product", "Don't imagine it. Design it.", interactive ? <ProductDemo /> : split(<Words>Choose a motif. Make it yours. Preview your product.</Words>, product));
+  add("product", "Don't imagine it. Design it.", interactive ? <ProductDemo presentation /> : split(<Words>Choose a motif. Make it yours. Preview your product.</Words>, product));
   add("marketing", "Make it. Wear it. Share it.", <><Words>{lead(s.marketing.strategy)}</Words><Tiles items={s.marketing.pillars.map((x) => ({ title: x.title, text: lead(x.description) }))} /></>, "indigo");
   add("marketing", "A campaign you can see.", gallery("s6", <div className="deck-campaign-grid">{s.marketing.samples.filter((x, i, all) => all.findIndex((y) => y.platform === x.platform) === i).slice(0, 3).map((sample) => <article className={`deck-campaign-card deck-campaign-${sample.platform}`} key={sample.id}><span className="deck-campaign-platform">{sample.platform}</span><h3>{sample.title}</h3><p>{compact(lead(sample.body), 19)}</p><strong>{sample.cta}</strong><small>Concept mockup · project copy</small></article>)}</div>), "cream");
-  add("demographics", "Made for people, not profiles.", <><span className="deck-label">Fictional composite personas · hypotheses to validate</span><div className="deck-persona-stage">{s.customers.personas.slice(0, 2).map((x, i) => <article key={x.id} className={i === 0 ? "deck-persona-primary" : "deck-persona-secondary"}><span className="deck-avatar">{String(i + 1).padStart(2, "0")}</span><h3>{x.name}</h3><p>{x.occupation} · {x.location}</p><blockquote>“{x.quote}”</blockquote></article>)}</div><div className="deck-journey">{s.customers.journey.slice(0, 5).map((x) => <span key={x.id}>{x.stage}</span>)}</div></>);
+  add("demographics", "Made for people, not profiles.", <><span className="deck-label">Fictional composite personas · hypotheses to validate</span><div className="deck-persona-stage">{s.customers.personas.slice(0, 2).map((x, i) => <article key={x.id} className={i === 0 ? "deck-persona-primary" : "deck-persona-secondary"}><span className="deck-avatar">{String(i + 1).padStart(2, "0")}</span><h3>{x.name}</h3><p>{x.occupation} · {x.location}</p><blockquote>“{x.quote}”</blockquote></article>)}</div><div className="deck-journey">{s.customers.journey.slice(0, 6).map((x) => <span key={x.id}>{x.stage}</span>)}</div></>);
   add("prompts", "Better questions. Better possibilities.", <><div className="deck-stats"><div><strong>{s.prompts.length}</strong><span>Library templates</span></div><div><strong>{s.usedPrompts.length}</strong><span>Actually logged as used</span></div></div><div className="deck-prompt-flow">{[{ title: "Role", mark: "01" }, { title: "Context", mark: "02" }, { title: "Task", mark: "03" }, { title: "Constraints", mark: "04" }, { title: "Format", mark: "05" }].map((step) => <div key={step.mark}><small>{step.mark}</small><strong>{step.title}</strong></div>)}</div><p className="deck-caption">A repeatable prompt structure. Human judgement at every step.</p></>, "indigo");
   add("prompts", "Test. Review. Refine.", <div className="deck-ai-loop"><div className="deck-journey deck-loop"><span>Brief</span><span>Generate</span><span>Review</span><span>Refine ↺</span></div><div className="deck-ai-guardrails"><p className="deck-kicker">AI proposes. People verify.</p><Tiles items={[{ title: "Numbers", text: "Recalculate. Label assumptions." }, { title: "Claims", text: "Check original sources." }, { title: "Culture", text: "Review motifs and context." }]} /></div><p className="deck-caption">{s.usedPrompts.length ? `${s.usedPrompts.length} actual prompt runs logged` : "No actual prompt runs logged · before/after example [DETAIL NEEDED]"}</p></div>);
   add("conclusion", "Your pattern. Your next chapter.", split(<><span className="deck-kicker">{c.productName}</span><Words>{c.tagline}</Words><p className="deck-caption">{lead(c.vision)}</p></>, gallery("s2", <div className="deck-pattern">{pattern}</div>)), "indigo");
